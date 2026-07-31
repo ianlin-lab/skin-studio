@@ -9,8 +9,8 @@ Skin Studio 是一个只在本机运行的 macOS Codex 换肤工具。第一版�
 ## 当前可用能力
 
 - 自动检测 Codex 安装目录、bundle id、版本、Apple Silicon 架构、运行进程和 Skin Studio 主题状态。
-- 2 套内置主题：Aurora Glass（深色玻璃基准）与羊皮书房（中世纪草纸、铜金强调、分层视差背景）。旧的三套近似主题不再展示。
-- 羊皮书房同时保留为独立主题文件夹：`bundled-themes/medieval-scriptorium`，可从 Skin Studio 的“导入素材”选择该文件夹重新导入一份可编辑副本。
+- 2 套内置主题：Aurora Glass（深色玻璃基准）与文艺复兴工坊（古典暗室、铜金强调、轻量光影背景）。旧的三套近似主题不再展示。
+- 文艺复兴工坊同时保留为独立主题文件夹：`bundled-themes/medieval-scriptorium`，可从 Skin Studio 的“导入素材”选择该文件夹重新导入一份可编辑副本。
 - 导入 PNG、JPEG、GIF、动态/静态 WebP 与 SVG；素材保持在本机。
 - 导入 Skin Studio v1 文件夹/ZIP。
 - 转换导入 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin) v1 `theme.json` 文件夹、ZIP 或公开 GitHub 仓库。

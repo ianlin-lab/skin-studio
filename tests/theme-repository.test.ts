@@ -31,7 +31,9 @@ describe("ThemeRepository", () => {
     const themes = await repository.list();
     expect(themes).toHaveLength(2);
     expect(themes.every((theme) => theme.builtin)).toBe(true);
-    expect(themes.find((theme) => theme.id === "medieval-scriptorium")?.asset.animated).toBe(true);
+    const workshop = themes.find((theme) => theme.id === "medieval-scriptorium");
+    expect(workshop?.name).toBe("文艺复兴工坊");
+    expect(workshop?.asset.animated).toBe(true);
 
     const updated = await repository.update(themes[0].id, {
       presentation: { panelOpacity: 8, positionX: -20, accent: "#ABCDEF" },

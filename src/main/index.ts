@@ -37,6 +37,18 @@ protocol.registerSchemesAsPrivileged([
 let mainWindow: BrowserWindow | null = null;
 let repository: ThemeRepository;
 let codexAdapter: CodexAdapter;
+const singleInstanceLockAcquired = app.requestSingleInstanceLock();
+
+if (!singleInstanceLockAcquired) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+}
 
 function dataDirectory(): string {
   return process.env.SKIN_STUDIO_DATA_DIR || path.join(app.getPath("userData"), "data");
@@ -251,55 +263,57 @@ async function resumeRuntime(): Promise<void> {
   }
 }
 
-app.whenReady().then(async () => {
-  repository = new ThemeRepository(
-    dataDirectory(),
-    resolveBundledThemesDirectory(app.getAppPath(), app.isPackaged),
-  );
-  await repository.initialize();
-  codexAdapter = new CodexAdapter(dataDirectory());
-  await registerAssetProtocol();
-  registerIpc();
-  Menu.setApplicationMenu(Menu.buildFromTemplate([
-    {
-      label: "Skin Studio",
-      submenu: [
-        { role: "about" },
-        { type: "separator" },
-        { role: "hide" },
-        { role: "hideOthers" },
-        { type: "separator" },
-        { role: "quit" },
-      ],
-    },
-    {
-      label: "编辑",
-      submenu: [
-        { role: "undo" },
-        { role: "redo" },
-        { type: "separator" },
-        { role: "cut" },
-        { role: "copy" },
-        { role: "paste" },
-        { role: "selectAll" },
-      ],
-    },
-    {
-      label: "窗口",
-      submenu: [
-        { role: "minimize" },
-        { role: "zoom" },
-        { role: "front" },
-      ],
-    },
-  ]));
-  createWindow();
-  await resumeRuntime();
+if (singleInstanceLockAcquired) {
+  void app.whenReady().then(async () => {
+    repository = new ThemeRepository(
+      dataDirectory(),
+      resolveBundledThemesDirectory(app.getAppPath(), app.isPackaged),
+    );
+    await repository.initialize();
+    codexAdapter = new CodexAdapter(dataDirectory());
+    await registerAssetProtocol();
+    registerIpc();
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+      {
+        label: "Skin Studio",
+        submenu: [
+          { role: "about" },
+          { type: "separator" },
+          { role: "hide" },
+          { role: "hideOthers" },
+          { type: "separator" },
+          { role: "quit" },
+        ],
+      },
+      {
+        label: "编辑",
+        submenu: [
+          { role: "undo" },
+          { role: "redo" },
+          { type: "separator" },
+          { role: "cut" },
+          { role: "copy" },
+          { role: "paste" },
+          { role: "selectAll" },
+        ],
+      },
+      {
+        label: "窗口",
+        submenu: [
+          { role: "minimize" },
+          { role: "zoom" },
+          { role: "front" },
+        ],
+      },
+    ]));
+    createWindow();
+    await resumeRuntime();
 
-  app.on("activate", () => {
-    if (!BrowserWindow.getAllWindows().length) createWindow();
+    app.on("activate", () => {
+      if (!BrowserWindow.getAllWindows().length) createWindow();
+    });
   });
-});
+}
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
