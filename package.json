@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.scripts.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "build:person-cutout": "swift scripts/build-person-cutout.swift",
     "verify:community": "tsx scripts/verify-community-import.ts",
     "verify:cdp": "tsx scripts/verify-cdp-injection.ts",
     "recover": "node scripts/recover-codex.cjs",

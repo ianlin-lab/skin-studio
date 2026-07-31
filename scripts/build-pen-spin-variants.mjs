@@ -6,6 +6,7 @@ const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectDirectory = path.resolve(scriptDirectory, "..");
 const assetDirectory = path.join(projectDirectory, "assets", "motion", "pen-spin");
 const sourcePath = path.join(assetDirectory, "renaissance-static-clean.png");
+const personPath = path.join(assetDirectory, "renaissance-person-cutout.png");
 const outputPath = path.join(assetDirectory, "renaissance-living-parallax-v3.svg");
 const bundledOutputPath = path.join(
   projectDirectory,
@@ -13,88 +14,62 @@ const bundledOutputPath = path.join(
   "medieval-scriptorium",
   "background.svg",
 );
-const source = await fs.readFile(sourcePath);
+const [source, person] = await Promise.all([
+  fs.readFile(sourcePath),
+  fs.readFile(personPath),
+]);
 const sourceDataUrl = `data:image/png;base64,${source.toString("base64")}`;
+const personDataUrl = `data:image/png;base64,${person.toString("base64")}`;
 
 const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg"
      xmlns:xlink="http://www.w3.org/1999/xlink"
      width="1586" height="992" viewBox="0 0 1586 992"
-     role="img" aria-label="A Renaissance workshop with lightweight ambient motion">
+     role="img" aria-label="A Renaissance workshop with a gently breathing figure">
   <defs>
     <image id="master" width="1586" height="992" xlink:href="${sourceDataUrl}"/>
-    <radialGradient id="windowGlow" cx="72%" cy="30%" r="62%">
-      <stop offset="0" stop-color="#f8d99a" stop-opacity=".24"/>
-      <stop offset=".46" stop-color="#d78d48" stop-opacity=".09"/>
-      <stop offset="1" stop-color="#4d2517" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="curtainShade" x1="0" y1="0" x2="1" y2=".7">
-      <stop offset="0" stop-color="#160b09" stop-opacity=".2"/>
-      <stop offset=".55" stop-color="#3a1711" stop-opacity=".07"/>
-      <stop offset="1" stop-color="#160b09" stop-opacity="0"/>
-    </linearGradient>
+    <image id="person" width="1586" height="992" xlink:href="${personDataUrl}"/>
+    <clipPath id="personClip" clipPathUnits="userSpaceOnUse">
+      <path d="M490 992 L482 780
+               C514 642 628 543 766 494
+               C751 429 761 288 856 229
+               C951 243 1014 339 984 476
+               C1104 491 1218 558 1280 678
+               C1327 760 1354 891 1375 992Z"/>
+      <path d="M1150 738
+               C1160 683 1178 640 1201 602
+               C1214 579 1218 536 1238 494
+               C1245 478 1258 476 1264 488
+               C1261 505 1254 520 1258 539
+               C1275 571 1289 607 1290 642
+               C1290 685 1252 726 1209 744Z"/>
+    </clipPath>
     <style>
-      .scene-motion {
-        transform-box: fill-box;
-        transform-origin: center;
+      .person-motion {
+        transform-box: view-box;
+        transform-origin: 875px 905px;
         will-change: transform;
-        animation: sceneFloat 11.8s ease-in-out infinite;
+        animation: personFloat 11.8s ease-in-out infinite;
       }
-      @keyframes sceneFloat {
-        0%, 100% { transform: translate(0, 2px) scale(1.035); }
-        28% { transform: translate(10px, -7px) scale(1.05); }
-        62% { transform: translate(-9px, 6px) scale(1.04); }
-        82% { transform: translate(5px, 3px) scale(1.047); }
+      @keyframes personFloat {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        28% { transform: translate(4px, -5px) scale(1.014, 1.022); }
+        62% { transform: translate(-2.5px, 2px) scale(1.009, 1.012); }
+        82% { transform: translate(2px, 1px) scale(1.012, 1.018); }
       }
       @media (prefers-reduced-motion: reduce) {
-        .scene-motion {
+        .person-motion {
           animation: none;
-          transform: scale(1.035);
+          transform: none;
         }
-        .ambient-motion { display: none; }
       }
     </style>
   </defs>
 
-  <!-- Float and breathe the single raster layer with enough overscan to keep
-       every edge covered. This stays lightweight while making the scene move. -->
-  <g class="scene-motion">
-    <use xlink:href="#master"/>
-  </g>
-
-  <!-- Vector-only light and shadow movement keeps the scene alive without
-       duplicating, masking, blurring, or re-rasterizing the full image. -->
-  <g class="ambient-motion" pointer-events="none">
-    <ellipse cx="1190" cy="330" rx="650" ry="430" fill="url(#windowGlow)" opacity=".08">
-      <animate attributeName="opacity"
-        values=".055;.115;.075;.055"
-        keyTimes="0;.38;.74;1" dur="13.8s" repeatCount="indefinite"/>
-      <animateTransform attributeName="transform" type="translate"
-        values="0 0;7 -3;-4 2;0 0"
-        keyTimes="0;.38;.74;1" dur="17.2s" repeatCount="indefinite"/>
-    </ellipse>
-    <path d="M0 0 H1586 V330
-             C1340 354 1110 365 880 344
-             C610 320 330 286 0 324Z"
-          fill="url(#curtainShade)" opacity=".16">
-      <animate attributeName="opacity"
-        values=".13;.19;.15;.13"
-        keyTimes="0;.42;.76;1" dur="11.6s" repeatCount="indefinite"/>
-    </path>
-    <g fill="#f5d99d" opacity=".16">
-      <circle cx="1118" cy="284" r="2.2">
-        <animate attributeName="cy" values="284;270;284" dur="9.4s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values=".08;.28;.08" dur="9.4s" repeatCount="indefinite"/>
-      </circle>
-      <circle cx="1284" cy="356" r="1.6">
-        <animate attributeName="cy" values="356;343;356" dur="12.1s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values=".06;.22;.06" dur="12.1s" repeatCount="indefinite"/>
-      </circle>
-      <circle cx="1396" cy="248" r="1.8">
-        <animate attributeName="cy" values="248;237;248" dur="10.7s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values=".05;.2;.05" dur="10.7s" repeatCount="indefinite"/>
-      </circle>
-    </g>
+  <!-- The background stays still. Only the clipped figure breathes and floats. -->
+  <use xlink:href="#master"/>
+  <g class="person-motion" clip-path="url(#personClip)">
+    <use xlink:href="#person"/>
   </g>
 </svg>
 `;

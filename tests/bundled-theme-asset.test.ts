@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("Renaissance workshop background budget", () => {
-  it("uses one raster scene without full-image masks or blur filters", async () => {
+  it("uses one static scene and one person cutout without masks or blur filters", async () => {
     const bundledSvg = await fs.readFile(path.join(
       process.cwd(),
       "bundled-themes",
@@ -20,10 +20,13 @@ describe("Renaissance workshop background budget", () => {
 
     expect(bundledSvg).toBe(sourceSvg);
     expect(bundledSvg.match(/<use xlink:href="#master"\/>/g)).toHaveLength(1);
+    expect(bundledSvg.match(/<use xlink:href="#person"\/>/g)).toHaveLength(1);
     expect(bundledSvg).not.toContain("<mask");
     expect(bundledSvg).not.toContain("<feGaussianBlur");
-    expect(bundledSvg).toContain('class="scene-motion"');
-    expect(bundledSvg).toContain("@keyframes sceneFloat");
-    expect(bundledSvg).toContain('class="ambient-motion"');
+    expect(bundledSvg).toContain('id="personClip"');
+    expect(bundledSvg).toContain('class="person-motion"');
+    expect(bundledSvg).toContain("@keyframes personFloat");
+    expect(bundledSvg).not.toContain("sceneFloat");
+    expect(bundledSvg).not.toContain("ambient-motion");
   });
 });

@@ -89,7 +89,7 @@ export const BUILTIN_THEMES: BuiltinThemeSeed[] = [
       schemaVersion: 1,
       id: "medieval-scriptorium",
       name: "文艺复兴工坊",
-      description: "文艺复兴暗室、暖象牙正文与铜金强调；背景以轻量光影动感为主。",
+      description: "文艺复兴暗室、暖象牙正文与铜金强调；背景保持静止，人物以轻量呼吸浮动为主。",
       author: "Skin Studio",
       builtin: true,
       asset: { file: "background.svg", mime: "image/svg+xml", animated: true },
