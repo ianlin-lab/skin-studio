@@ -47,7 +47,31 @@ describe("injected theme payload", () => {
         '[role=\\"switch\\"] > [data-state] > [data-state]',
       );
       expect(payload.revision).toHaveLength(18);
-      expect(verifyExpression(theme.id, payload.revision)).toContain(payload.revision);
+      const verification = verifyExpression(theme.id, payload.revision);
+      expect(verification).toContain(payload.revision);
+      const rootElement = {
+        getAttribute: (name: string) => name === "data-skin-studio-theme"
+          ? theme.id
+          : name === "data-skin-studio-revision" ? payload.revision : null,
+      };
+      const styleElement = {
+        isConnected: true,
+        dataset: {
+          revision: payload.revision,
+          contract: "skin-studio-codex-v2",
+        },
+      };
+      const documentMock = {
+        documentElement: rootElement,
+        querySelector: (selector: string) => selector.includes("main") || selector.includes("aside")
+          ? {}
+          : null,
+        getElementById: (id: string) => id === "skin-studio-theme-style" ? styleElement : null,
+      };
+      const verify = Function("document", `return ${verification};`) as (
+        document: typeof documentMock,
+      ) => { ok: boolean; visualReady: boolean };
+      expect(verify(documentMock)).toMatchObject({ ok: true, visualReady: true });
       expect(CLEANUP_EXPRESSION).toContain("removeAttribute");
     } finally {
       await fs.rm(root, { recursive: true, force: true });

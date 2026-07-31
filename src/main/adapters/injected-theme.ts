@@ -475,13 +475,10 @@ export function verifyExpression(themeId: string, revision: string): string {
     const main = document.querySelector('main[data-app-shell-main-surface], main.main-surface, main.bg-token-main-surface-primary');
     const sidebar = document.querySelector("aside.app-shell-left-panel");
     const style = document.getElementById("skin-studio-theme-style");
-    const mainStyle = main ? getComputedStyle(main) : null;
     const visualReady = Boolean(
       main
       && sidebar
-      && mainStyle
-      && mainStyle.backgroundImage
-      && mainStyle.backgroundImage !== "none"
+      && style?.isConnected
     );
     return {
       ok: root.getAttribute("data-skin-studio-theme") === ${JSON.stringify(themeId)}
