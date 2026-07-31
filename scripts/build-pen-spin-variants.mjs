@@ -7,7 +7,6 @@ const projectDirectory = path.resolve(scriptDirectory, "..");
 const assetDirectory = path.join(projectDirectory, "assets", "motion", "pen-spin");
 const sourcePath = path.join(assetDirectory, "renaissance-static-clean.png");
 const personPath = path.join(assetDirectory, "renaissance-person-cutout.png");
-const outputPath = path.join(assetDirectory, "renaissance-living-parallax-v3.svg");
 const bundledOutputPath = path.join(
   projectDirectory,
   "bundled-themes",
@@ -74,8 +73,5 @@ const svg = `<?xml version="1.0" encoding="UTF-8"?>
 </svg>
 `;
 
-await Promise.all([
-  fs.writeFile(outputPath, svg, { encoding: "utf8", mode: 0o600 }),
-  fs.writeFile(bundledOutputPath, svg, { encoding: "utf8", mode: 0o600 }),
-]);
-console.log([outputPath, bundledOutputPath].join("\n"));
+await fs.writeFile(bundledOutputPath, svg, { encoding: "utf8", mode: 0o600 });
+console.log(bundledOutputPath);

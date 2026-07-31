@@ -6,7 +6,7 @@ Codex：`26.727.40816`，bundle id `com.openai.codex`
 
 ## 自动化
 
-- `npm test`：4 个测试文件，13 个测试通过。
+- `npm test`：7 个测试文件，19 个测试通过。
 - 覆盖：单一内置主题初始化、参数夹值、本地图片导入、Dream Skin v1 完整色板与 Safe CSS 转换、恶意 CSS/异常 ZIP 拒绝、完整界面注入 payload/恢复表达式。
 - `npm run typecheck`：renderer、main、preload、scripts 全部通过。
 - `npm run build`：Electron main/preload 与 Vite renderer 生产构建通过。
@@ -76,10 +76,7 @@ main[data-app-shell-main-surface]: true
 .composer-surface-chrome: true
 ```
 
-Aurora Glass 内置主题已实际应用并截图；主背景、侧栏、顶栏、聊天/工作切换、输入框、文字与强调按钮均可读。清理后的第二张截图确认 Codex 回到原生浅色界面：
-
-- `artifacts/aurora-glass-final.png`
-- `artifacts/aurora-glass-final-restored.png`
+Aurora Glass 内置主题已实际应用并完成视觉验收；主背景、侧栏、顶栏、聊天/工作切换、输入框、文字与强调按钮均可读。清理后的第二次验收确认 Codex 回到原生浅色界面。验证截图属于临时产物，不保存在仓库中。
 
 测试完成后已正常退出临时 Codex 进程，并删除独立临时用户目录。当前工作 Codex 会话未被重启或修改。
 
