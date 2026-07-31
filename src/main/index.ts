@@ -117,26 +117,24 @@ function registerIpc(): void {
     repository.updateSettings(patch)
   ));
 
-  ipcMain.handle("theme:choose-import", async (_event, kind: "image" | "theme" | "folder") => {
+  ipcMain.handle("theme:choose-import", async (_event, kind: "image" | "folder") => {
     if (!mainWindow) return { ok: false, message: "窗口不可用" } satisfies ImportResult;
     const options: OpenDialogOptions = kind === "folder"
       ? {
-          title: "选择主题项目文件夹",
+          title: "选择已解压的主题文件夹",
           properties: ["openDirectory"],
         }
       : {
-          title: kind === "image" ? "选择背景素材" : "选择主题 ZIP",
+          title: "选择背景素材",
           properties: ["openFile"],
-          filters: kind === "image"
-            ? [{ name: "图片与动态素材", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg"] }]
-            : [{ name: "主题压缩包", extensions: ["zip"] }],
+          filters: [{ name: "图片与动态素材", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg"] }],
         };
     const selected = await dialog.showOpenDialog(mainWindow, options);
     if (selected.canceled || !selected.filePaths[0]) {
       return { ok: false, message: "已取消导入" } satisfies ImportResult;
     }
     try {
-      return await repository.importPath(selected.filePaths[0], kind === "folder" ? "folder" : undefined);
+      return await repository.importPath(selected.filePaths[0], kind === "folder" ? "folder" : "image");
     } catch (error) {
       return {
         ok: false,

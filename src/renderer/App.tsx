@@ -45,7 +45,7 @@ import type {
 import { buildStudioBackgroundStyle } from "./studio-theme";
 
 type Toast = { tone: "success" | "error" | "info"; message: string } | null;
-type ImportMode = "image" | "theme" | "folder" | "github" | null;
+type ImportMode = "local" | "github" | null;
 type PendingThemeSave = {
   presentation: ThemePresentation;
   version: number;
@@ -228,7 +228,7 @@ function App() {
     }
   }
 
-  async function chooseImport(kind: "image" | "theme" | "folder") {
+  async function chooseImport(kind: "image" | "folder") {
     setBusy(`import-${kind}`);
     try {
       const result = await window.skinStudio.chooseAndImport(kind);
@@ -304,7 +304,7 @@ function App() {
             <span>主题库</span>
             <span className="nav-count">{data.themes.length}</span>
           </button>
-          <button className="nav-item" onClick={() => setImportMode("image")}>
+          <button className="nav-item" onClick={() => setImportMode("local")}>
             <ImagePlus size={17} />
             <span>导入素材</span>
             <ChevronRight size={15} />
@@ -339,7 +339,7 @@ function App() {
             <h1>选择今天的工作氛围</h1>
             <p>主题只作用于界面表现，随时可以回到原生外观。</p>
           </div>
-          <button className="primary compact" onClick={() => setImportMode("image")}>
+          <button className="primary compact" onClick={() => setImportMode("local")}>
             <Plus size={17} />
             导入
           </button>
@@ -381,7 +381,7 @@ function App() {
               onSelect={() => setSelectedId(theme.id)}
             />
           ))}
-          <button className="add-card" onClick={() => setImportMode("image")}>
+          <button className="add-card" onClick={() => setImportMode("local")}>
             <span><Plus size={21} /></span>
             <strong>创建新主题</strong>
             <small>图片、GIF 或动态 WebP</small>
@@ -887,7 +887,7 @@ function ImportSheet({
   busy: string | null;
   githubUrl: string;
   onGithubUrl: (value: string) => void;
-  onChoose: (kind: "image" | "theme" | "folder") => void;
+  onChoose: (kind: "image" | "folder") => void;
   onGithub: (event: FormEvent) => void;
   onClose: () => void;
   onMode: (mode: ImportMode) => void;
@@ -915,9 +915,9 @@ function ImportSheet({
                 autoFocus
               />
             </label>
-            <p>只下载公开仓库 ZIP，不执行其中脚本。会扫描 Skin Studio v1 与 Dream Skin v1 主题目录。</p>
+            <p>只读取公开仓库中的主题配置和素材，不执行脚本。会扫描 Skin Studio v1 与 Dream Skin v1 主题目录。</p>
             <div className="sheet-actions">
-              <button type="button" className="secondary" onClick={() => onMode("image")}>返回</button>
+              <button type="button" className="secondary" onClick={() => onMode("local")}>返回</button>
               <button className="primary" disabled={busy === "import-github"}>
                 {busy === "import-github" ? <LoaderCircle className="spin" size={16} /> : <GitBranch size={16} />}
                 下载并检查
@@ -929,34 +929,28 @@ function ImportSheet({
             <div className="import-options">
               <button onClick={() => onChoose("image")}>
                 <span className="import-icon image"><FileImage size={21} /></span>
-                <strong>背景素材</strong>
-                <small>PNG、JPG、GIF、WebP</small>
-                <ChevronRight size={16} />
-              </button>
-              <button onClick={() => onChoose("theme")}>
-                <span className="import-icon archive"><Archive size={21} /></span>
-                <strong>主题 ZIP</strong>
-                <small>安全解压并转换主题</small>
+                <strong>从图片创建</strong>
+                <small>PNG、JPG、GIF、WebP、SVG</small>
                 <ChevronRight size={16} />
               </button>
               <button onClick={() => onChoose("folder")}>
                 <span className="import-icon folder"><FolderOpen size={21} /></span>
-                <strong>项目文件夹</strong>
-                <small>扫描本地主题目录</small>
+                <strong>导入主题文件夹</strong>
+                <small>选择已解压的主题目录</small>
                 <ChevronRight size={16} />
               </button>
-              <button onClick={() => onMode("github")}>
+              <button className="github-option" onClick={() => onMode("github")}>
                 <span className="import-icon github"><GitBranch size={21} /></span>
-                <strong>GitHub 仓库</strong>
-                <small>公开仓库地址</small>
+                <strong>从 GitHub 导入</strong>
+                <small>粘贴公开仓库地址并检查主题</small>
                 <ChevronRight size={16} />
               </button>
             </div>
             <div className="compatibility-note">
               <ShieldCheck size={17} />
               <p>
-                <strong>当前已验证</strong>
-                <span>Skin Studio v1、Fei-Away/Codex-Dream-Skin v1 图片与配色转换</span>
+                <strong>兼容说明</strong>
+                <span>支持 Skin Studio 主题和部分 Dream Skin 主题；导入时只读取图片、配置和受限样式，不运行脚本。复杂主题可能只保留背景与配色。</span>
               </p>
             </div>
           </>

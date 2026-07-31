@@ -126,7 +126,7 @@ export type ThemePatch = Partial<
 export interface SkinStudioApi {
   bootstrap(): Promise<DashboardData>;
   refreshStatus(): Promise<CodexStatus>;
-  chooseAndImport(kind: "image" | "theme" | "folder"): Promise<ImportResult>;
+  chooseAndImport(kind: "image" | "folder"): Promise<ImportResult>;
   importGithub(url: string): Promise<ImportResult>;
   updateTheme(id: string, patch: ThemePatch): Promise<ThemeSummary>;
   deleteTheme(id: string): Promise<OperationResult>;
