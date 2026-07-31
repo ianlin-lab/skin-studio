@@ -1,0 +1,53 @@
+{
+  "format": "skin-studio-theme-v1",
+  "schemaVersion": 1,
+  "id": "claude-warm",
+  "name": "Claude Warm",
+  "description": "受 Claude 启发的暖米白界面、陶土橙强调色与克制的纸张质感。",
+  "author": "Skin Studio",
+  "builtin": false,
+  "asset": {
+    "file": "background.svg",
+    "mime": "image/svg+xml",
+    "animated": false
+  },
+  "presentation": {
+    "appearance": "light",
+    "fit": "cover",
+    "positionX": 52,
+    "positionY": 44,
+    "scale": 1,
+    "brightness": 1.02,
+    "overlayOpacity": 0.04,
+    "panelOpacity": 0.94,
+    "panelBlur": 14,
+    "radius": 16,
+    "accent": "#c15f3c",
+    "textTone": "dark",
+    "taskIntensity": 0.08,
+    "colors": {
+      "background": "#f7f4ed",
+      "panel": "#eee9df",
+      "panelAlt": "#fffdf8",
+      "accent": "#c15f3c",
+      "accentAlt": "#d97757",
+      "secondary": "#8b6f60",
+      "highlight": "#ead7c8",
+      "text": "#2d2926",
+      "muted": "#756d66",
+      "line": "rgba(74, 61, 52, 0.18)"
+    }
+  },
+  "safeCss": {
+    "contract": "dreamskin-safe-css/1",
+    "css": "[data-ds-part=\"root\"] {\n  font-family: -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", \"PingFang SC\", sans-serif;\n  font-size: 15px;\n  line-height: 1.55;\n  letter-spacing: 0;\n}\n[data-ds-part=\"sidebar\"] {\n  font-family: -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", \"PingFang SC\", sans-serif;\n  font-weight: 450;\n  letter-spacing: 0;\n}\n[data-ds-part=\"header\"] {\n  font-family: -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", \"PingFang SC\", sans-serif;\n  font-weight: 500;\n}\n[data-ds-part=\"home\"] {\n  font-family: \"Iowan Old Style\", Baskerville, \"Songti SC\", serif;\n  line-height: 1.6;\n}\n[data-ds-part=\"home-hero\"] {\n  font-family: \"Iowan Old Style\", Baskerville, \"Songti SC\", serif;\n  font-weight: 500;\n  letter-spacing: -0.01em;\n}\n[data-ds-part=\"thread\"] {\n  font-family: \"Iowan Old Style\", Baskerville, \"Songti SC\", serif;\n  line-height: 1.68;\n}\n[data-ds-part=\"message\"] {\n  font-family: \"Iowan Old Style\", Baskerville, \"Songti SC\", serif;\n  line-height: 1.68;\n}\n[data-ds-part=\"composer\"] {\n  font-family: -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", \"PingFang SC\", sans-serif;\n  font-size: 15px;\n  line-height: 1.5;\n}\n[data-ds-part=\"composer-toolbar\"] {\n  font-family: -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", \"PingFang SC\", sans-serif;\n  font-size: 13px;\n}\n[data-ds-part=\"dialog\"] {\n  font-family: -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", \"PingFang SC\", sans-serif;\n  line-height: 1.5;\n}"
+  },
+  "source": {
+    "type": "folder",
+    "label": "Claude Warm theme pack",
+    "adapter": "skin-studio-v1",
+    "importedAt": "2026-07-31T00:00:00.000Z"
+  },
+  "createdAt": "2026-07-31T00:00:00.000Z",
+  "updatedAt": "2026-07-31T00:00:00.000Z"
+}

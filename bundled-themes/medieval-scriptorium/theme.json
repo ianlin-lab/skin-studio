@@ -1,0 +1,44 @@
+{
+  "format": "skin-studio-theme-v1",
+  "schemaVersion": 1,
+  "id": "medieval-scriptorium",
+  "name": "羊皮书房",
+  "description": "中世纪暗室、暖象牙正文与铜金强调；背景以分层视差动感为主。",
+  "author": "Skin Studio",
+  "builtin": false,
+  "asset": { "file": "background.svg", "mime": "image/svg+xml", "animated": true },
+  "presentation": {
+    "appearance": "dark",
+    "fit": "cover",
+    "positionX": 53,
+    "positionY": 48,
+    "scale": 1,
+    "brightness": 1,
+    "overlayOpacity": 0,
+    "panelOpacity": 0.2,
+    "panelBlur": 0,
+    "radius": 12,
+    "accent": "#d6a151",
+    "textTone": "light",
+    "taskIntensity": 1,
+    "colors": {
+      "background": "#1e120f",
+      "panel": "#251812",
+      "panelAlt": "#382318",
+      "accent": "#d6a151",
+      "accentAlt": "#efc578",
+      "secondary": "#8fa36c",
+      "highlight": "#c46d56",
+      "text": "#f8edd5",
+      "muted": "#c8b99a",
+      "line": "#8f6a3f"
+    }
+  },
+  "safeCss": {
+    "contract": "dreamskin-safe-css/1",
+    "css": "[data-ds-part=\"root\"] {\n  --ds-theme-font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif;\n  font-family: var(--ds-theme-font-family);\n  letter-spacing: .01em;\n}\n[data-ds-part=\"sidebar\"] {\n  border-right-color: rgba(115, 77, 41, .38);\n}\n[data-ds-part=\"header\"] {\n  font-family: Georgia, \"Iowan Old Style\", \"Times New Roman\", serif;\n  font-weight: 600;\n  letter-spacing: .025em;\n  border-bottom-color: rgba(115, 77, 41, .34);\n}\n[data-ds-part=\"thread\"] {\n  box-shadow: inset 0 1px 0 rgba(255, 249, 232, .62);\n}\n[data-ds-part=\"message\"] {\n  line-height: 1.62;\n}\n[data-ds-part=\"composer\"] {\n  box-shadow: 0 16px 42px rgba(58, 34, 19, .22);\n}\n"
+  },
+  "source": { "type": "folder", "label": "Skin Studio bundled theme", "adapter": "skin-studio-v1" },
+  "createdAt": "2026-07-31T00:00:00.000Z",
+  "updatedAt": "2026-07-31T00:00:00.000Z"
+}
