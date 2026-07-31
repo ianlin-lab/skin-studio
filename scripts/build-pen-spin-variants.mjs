@@ -34,14 +34,33 @@ const svg = `<?xml version="1.0" encoding="UTF-8"?>
       <stop offset="1" stop-color="#160b09" stop-opacity="0"/>
     </linearGradient>
     <style>
+      .scene-motion {
+        transform-box: fill-box;
+        transform-origin: center;
+        will-change: transform;
+        animation: sceneFloat 11.8s ease-in-out infinite;
+      }
+      @keyframes sceneFloat {
+        0%, 100% { transform: translate(0, 2px) scale(1.035); }
+        28% { transform: translate(10px, -7px) scale(1.05); }
+        62% { transform: translate(-9px, 6px) scale(1.04); }
+        82% { transform: translate(5px, 3px) scale(1.047); }
+      }
       @media (prefers-reduced-motion: reduce) {
+        .scene-motion {
+          animation: none;
+          transform: scale(1.035);
+        }
         .ambient-motion { display: none; }
       }
     </style>
   </defs>
 
-  <!-- Keep the expensive raster scene in a single compositing layer. -->
-  <use xlink:href="#master"/>
+  <!-- Float and breathe the single raster layer with enough overscan to keep
+       every edge covered. This stays lightweight while making the scene move. -->
+  <g class="scene-motion">
+    <use xlink:href="#master"/>
+  </g>
 
   <!-- Vector-only light and shadow movement keeps the scene alive without
        duplicating, masking, blurring, or re-rasterizing the full image. -->
