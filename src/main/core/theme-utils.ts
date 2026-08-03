@@ -5,6 +5,7 @@ import type {
   BackgroundFit,
   TextTone,
   ThemeAppearance,
+  BackgroundVisibilityOverride,
   ThemeManifest,
   ThemeColors,
   ThemeMotionLayer,
@@ -80,6 +81,23 @@ function optionalOpacity(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.min(1, Math.max(0.3, value))
     : undefined;
+}
+
+const BACKGROUND_VISIBILITY_OVERRIDE_KEYS: readonly BackgroundVisibilityOverride[] = [
+  "overlayOpacity",
+  "panelOpacity",
+  "taskIntensity",
+  "panelBlur",
+  "composerOpacity",
+  "popupOpacity",
+];
+
+function normalizeBackgroundVisibilityOverrides(value: unknown): BackgroundVisibilityOverride[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const overrides = value.filter((item): item is BackgroundVisibilityOverride =>
+    typeof item === "string" && BACKGROUND_VISIBILITY_OVERRIDE_KEYS.includes(item as BackgroundVisibilityOverride),
+  );
+  return Array.from(new Set(overrides));
 }
 
 export function safeText(value: unknown, fallback: string, max = 120): string {
@@ -191,6 +209,12 @@ export function normalizePresentation(
   const composerOpacity = optionalOpacity(value?.composerOpacity);
   const popupOpacity = optionalOpacity(value?.popupOpacity);
   const motionEnabled = typeof value?.motionEnabled === "boolean" ? value.motionEnabled : undefined;
+  const backgroundVisibility = typeof value?.backgroundVisibility === "number"
+    ? clamp(value.backgroundVisibility, 0, 1, 0.5)
+    : undefined;
+  const backgroundVisibilityOverrides = normalizeBackgroundVisibilityOverrides(
+    value?.backgroundVisibilityOverrides,
+  );
   colors.accent = accent;
   return {
     appearance: choice<ThemeAppearance>(value?.appearance, ["auto", "light", "dark"], fallback.appearance),
@@ -204,6 +228,8 @@ export function normalizePresentation(
     ...(composerOpacity === undefined ? {} : { composerOpacity }),
     ...(popupOpacity === undefined ? {} : { popupOpacity }),
     ...(motionEnabled === undefined ? {} : { motionEnabled }),
+    ...(backgroundVisibility === undefined ? {} : { backgroundVisibility }),
+    ...(backgroundVisibilityOverrides === undefined ? {} : { backgroundVisibilityOverrides }),
     panelBlur: clamp(value?.panelBlur, 0, 48, fallback.panelBlur),
     radius: clamp(value?.radius, 8, 26, fallback.radius),
     accent,

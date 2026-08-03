@@ -43,6 +43,12 @@ import type {
   ThemeSummary,
 } from "../shared/types";
 import {
+  applyBackgroundVisibility,
+  detachBackgroundVisibilityField,
+  effectiveBackgroundVisibility,
+  restoreBackgroundVisibilityField,
+} from "./background-visibility";
+import {
   buildStudioBackgroundStyle,
   buildStudioMotionStyle,
   displayedBackgroundUrl,
@@ -65,14 +71,6 @@ const rangeFormatters = {
   radius: (value: number) => `${Math.round(value)} px`,
   taskIntensity: (value: number) => `${Math.round(value * 100)}%`,
 };
-
-function inheritedComposerOpacity(panelOpacity: number): number {
-  return Math.min(0.98, panelOpacity + 0.13);
-}
-
-function inheritedPopupOpacity(panelOpacity: number): number {
-  return Math.min(0.99, panelOpacity + 0.16);
-}
 
 function App() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -466,7 +464,7 @@ function App() {
             <ThemePreview theme={selected} />
 
             <div className="inspector-scroll">
-              <ControlSection title="画面" icon={<FileImage size={15} />}>
+              <ControlSection title="画面构图" icon={<FileImage size={15} />}>
                 {selected.asset.animated && (selected.asset.still || selected.asset.motion) && (
                   <div className="motion-toggle-row">
                     <div>
@@ -526,25 +524,22 @@ function App() {
                 </div>
               </ControlSection>
 
-              <ControlSection title="界面" icon={<Sparkles size={15} />}>
-                <div className="background-clarity">
-                  <div>
-                    <strong>想让图片背景更明显？</strong>
-                    <small>降低遮罩与面板覆盖，保留当前配色和位置。</small>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => updatePresentation({
-                      brightness: 1,
-                      overlayOpacity: 0.04,
-                      panelOpacity: 0.52,
-                      panelBlur: 0,
-                      taskIntensity: 0.86,
-                    })}
-                  >
-                    清晰背景
-                  </button>
+              <ControlSection title="背景显现" icon={<Sparkles size={15} />}>
+                <div className="visibility-intro">
+                  <strong>阅读优先 <span>←</span> 平衡 <span>→</span> 背景优先</strong>
+                  <small>向右会减少遮罩和覆盖，让背景更完整；输入框与弹窗仍保留可读性。</small>
                 </div>
+                <RangeControl
+                  label="背景显现度"
+                  value={effectiveBackgroundVisibility(selected.presentation)}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  format={(value) => `${Math.round(value * 100)}%`}
+                  onChange={(value) => updatePresentation(
+                    applyBackgroundVisibility(selected.presentation, value),
+                  )}
+                />
                 <RangeControl
                   label="画面亮度"
                   value={selected.presentation.brightness}
@@ -554,63 +549,122 @@ function App() {
                   format={rangeFormatters.brightness}
                   onChange={(value) => updatePresentation({ brightness: value })}
                 />
-                <RangeControl
+                <LinkedRangeControl
                   label="背景遮罩"
                   value={selected.presentation.overlayOpacity}
                   min={0}
                   max={0.8}
                   step={0.01}
                   format={rangeFormatters.overlayOpacity}
-                  onChange={(value) => updatePresentation({ overlayOpacity: value })}
+                  isFollowing={!selected.presentation.backgroundVisibilityOverrides?.includes("overlayOpacity")}
+                  onChange={(value) => updatePresentation(detachBackgroundVisibilityField(
+                    selected.presentation,
+                    "overlayOpacity",
+                    value,
+                  ))}
+                  onRestore={() => updatePresentation(restoreBackgroundVisibilityField(
+                    selected.presentation,
+                    "overlayOpacity",
+                  ))}
                 />
-                <RangeControl
-                  label="面板不透明度"
-                  value={selected.presentation.panelOpacity}
-                  min={0.3}
-                  max={1}
-                  step={0.01}
-                  format={rangeFormatters.panelOpacity}
-                  onChange={(value) => updatePresentation({ panelOpacity: value })}
-                />
-                <div className="floating-opacity-controls">
-                  <div className="control-subhead">
-                    <strong>浮层可读性</strong>
-                    <span>单独覆盖输入框与弹窗</span>
-                  </div>
-                  <RangeControl
-                    label="聊天输入框"
-                    value={selected.presentation.composerOpacity
-                      ?? inheritedComposerOpacity(selected.presentation.panelOpacity)}
-                    min={0.3}
-                    max={1}
-                    step={0.01}
-                    format={(value) => selected.presentation.composerOpacity === undefined
-                      ? `${Math.round(value * 100)}% · 跟随面板`
-                      : rangeFormatters.panelOpacity(value)}
-                    onChange={(value) => updatePresentation({ composerOpacity: value })}
-                  />
-                  <RangeControl
-                    label="弹窗与菜单"
-                    value={selected.presentation.popupOpacity
-                      ?? inheritedPopupOpacity(selected.presentation.panelOpacity)}
-                    min={0.3}
-                    max={1}
-                    step={0.01}
-                    format={(value) => selected.presentation.popupOpacity === undefined
-                      ? `${Math.round(value * 100)}% · 跟随面板`
-                      : rangeFormatters.panelOpacity(value)}
-                    onChange={(value) => updatePresentation({ popupOpacity: value })}
-                  />
-                </div>
-                <RangeControl
+                <LinkedRangeControl
                   label="背景模糊"
                   value={selected.presentation.panelBlur}
                   min={0}
                   max={48}
                   step={1}
                   format={rangeFormatters.panelBlur}
-                  onChange={(value) => updatePresentation({ panelBlur: value })}
+                  isFollowing={!selected.presentation.backgroundVisibilityOverrides?.includes("panelBlur")}
+                  onChange={(value) => updatePresentation(detachBackgroundVisibilityField(
+                    selected.presentation,
+                    "panelBlur",
+                    value,
+                  ))}
+                  onRestore={() => updatePresentation(restoreBackgroundVisibilityField(
+                    selected.presentation,
+                    "panelBlur",
+                  ))}
                 />
+              </ControlSection>
+
+              <ControlSection title="界面覆盖" icon={<Layers3 size={15} />}>
+                <LinkedRangeControl
+                  label="侧栏与顶部覆盖"
+                  value={selected.presentation.panelOpacity}
+                  min={0.3}
+                  max={1}
+                  step={0.01}
+                  format={rangeFormatters.panelOpacity}
+                  isFollowing={!selected.presentation.backgroundVisibilityOverrides?.includes("panelOpacity")}
+                  onChange={(value) => updatePresentation(detachBackgroundVisibilityField(
+                    selected.presentation,
+                    "panelOpacity",
+                    value,
+                  ))}
+                  onRestore={() => updatePresentation(restoreBackgroundVisibilityField(
+                    selected.presentation,
+                    "panelOpacity",
+                  ))}
+                />
+                <LinkedRangeControl
+                  label="对话区透出"
+                  value={selected.presentation.taskIntensity}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  format={rangeFormatters.taskIntensity}
+                  isFollowing={!selected.presentation.backgroundVisibilityOverrides?.includes("taskIntensity")}
+                  onChange={(value) => updatePresentation(detachBackgroundVisibilityField(
+                    selected.presentation,
+                    "taskIntensity",
+                    value,
+                  ))}
+                  onRestore={() => updatePresentation(restoreBackgroundVisibilityField(
+                    selected.presentation,
+                    "taskIntensity",
+                  ))}
+                />
+                <details className="coverage-details">
+                  <summary>细分覆盖 <span>输入框与弹窗</span></summary>
+                  <div>
+                    <LinkedRangeControl
+                      label="聊天输入框"
+                      value={selected.presentation.composerOpacity ?? selected.presentation.panelOpacity}
+                      min={0.3}
+                      max={1}
+                      step={0.01}
+                      format={rangeFormatters.panelOpacity}
+                      isFollowing={!selected.presentation.backgroundVisibilityOverrides?.includes("composerOpacity")}
+                      onChange={(value) => updatePresentation(detachBackgroundVisibilityField(
+                        selected.presentation,
+                        "composerOpacity",
+                        value,
+                      ))}
+                      onRestore={() => updatePresentation(restoreBackgroundVisibilityField(
+                        selected.presentation,
+                        "composerOpacity",
+                      ))}
+                    />
+                    <LinkedRangeControl
+                      label="弹窗与菜单"
+                      value={selected.presentation.popupOpacity ?? selected.presentation.panelOpacity}
+                      min={0.3}
+                      max={1}
+                      step={0.01}
+                      format={rangeFormatters.panelOpacity}
+                      isFollowing={!selected.presentation.backgroundVisibilityOverrides?.includes("popupOpacity")}
+                      onChange={(value) => updatePresentation(detachBackgroundVisibilityField(
+                        selected.presentation,
+                        "popupOpacity",
+                        value,
+                      ))}
+                      onRestore={() => updatePresentation(restoreBackgroundVisibilityField(
+                        selected.presentation,
+                        "popupOpacity",
+                      ))}
+                    />
+                  </div>
+                </details>
                 <div className="two-controls">
                   <RangeControl
                     label="圆角"
@@ -621,19 +675,10 @@ function App() {
                     format={rangeFormatters.radius}
                     onChange={(value) => updatePresentation({ radius: value })}
                   />
-                  <RangeControl
-                    label="内容区透明度"
-                    value={selected.presentation.taskIntensity}
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    format={rangeFormatters.taskIntensity}
-                    onChange={(value) => updatePresentation({ taskIntensity: value })}
-                  />
                 </div>
               </ControlSection>
 
-              <ControlSection title="色彩" icon={<Palette size={15} />}>
+              <ControlSection title="色彩与文字" icon={<Palette size={15} />}>
                 <div className="color-grid">
                   <ColorControl
                     label="背景"
@@ -985,6 +1030,26 @@ function RangeControl({
         onChange={(event) => onChange(Number(event.target.value))}
       />
     </label>
+  );
+}
+
+function LinkedRangeControl({
+  isFollowing,
+  onRestore,
+  ...props
+}: Parameters<typeof RangeControl>[0] & {
+  isFollowing: boolean;
+  onRestore: () => void;
+}) {
+  return (
+    <div className="linked-range-control">
+      <RangeControl {...props} />
+      {isFollowing ? (
+        <span className="follow-chip">跟随整体</span>
+      ) : (
+        <button type="button" className="restore-follow" onClick={onRestore}>恢复跟随</button>
+      )}
+    </div>
   );
 }
 

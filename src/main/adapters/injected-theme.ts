@@ -108,7 +108,6 @@ html[data-skin-studio-theme] [data-reactroot] {
 ` : "";
   const css = `
 html[data-skin-studio-theme] {
-  color-scheme: ${p.appearance === "light" ? "light" : "dark"} !important;
   --skin-bg: ${c.background};
   --skin-panel: ${c.panel};
   --skin-panel-alt: ${c.panelAlt};
@@ -212,6 +211,8 @@ html[data-skin-studio-theme] body {
 
 html[data-skin-studio-theme] #root,
 html[data-skin-studio-theme] [data-reactroot] {
+  /* Keep title-bar and other native controls out of the web theme's color-scheme. */
+  color-scheme: ${p.appearance === "light" ? "light" : "dark"} !important;
   color: var(--skin-text) !important;
   background: transparent !important;
 }

@@ -37,6 +37,8 @@ describe("injected theme payload", () => {
       expect(payload.expression).toContain("data-ds-part");
       expect(payload.expression).toContain("composer-surface-chrome");
       expect(payload.expression).toContain("--ds-theme-color-accent");
+      expect(payload.expression).toContain("native controls out of the web theme's color-scheme");
+      expect(payload.expression).toContain("#root,\\nhtml[data-skin-studio-theme] [data-reactroot]");
       expect(payload.expression).toContain(
         '[data-state=\\"checked\\"]:not([role=\\"switch\\"]):not([role=\\"switch\\"] *)',
       );

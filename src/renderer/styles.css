@@ -1061,14 +1061,6 @@ input:focus-visible {
   margin: 8px 0;
 }
 
-.floating-opacity-controls {
-  margin: 10px 0;
-  padding: 8px 9px 3px;
-  border: 1px solid rgba(255, 255, 255, .06);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, .025);
-}
-
 .motion-toggle-row {
   display: flex;
   align-items: center;
@@ -1079,48 +1071,6 @@ input:focus-visible {
   border: 1px solid rgba(255, 255, 255, .07);
   border-radius: 10px;
   background: rgba(255, 255, 255, .025);
-}
-
-.background-clarity {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 11px;
-  padding: 9px 10px;
-  border: 1px solid color-mix(in srgb, var(--studio-accent), transparent 74%);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--studio-accent), transparent 91%);
-}
-
-.background-clarity strong,
-.background-clarity small {
-  display: block;
-}
-
-.background-clarity strong {
-  color: rgba(255, 255, 255, .82);
-  font-size: 10px;
-}
-
-.background-clarity small {
-  margin-top: 3px;
-  color: rgba(255, 255, 255, .43);
-  font-size: 8px;
-  line-height: 1.35;
-}
-
-.background-clarity button {
-  flex: 0 0 auto;
-  padding: 6px 8px;
-  color: #171717;
-  border: 0;
-  border-radius: 7px;
-  background: var(--studio-accent);
-  font: inherit;
-  font-size: 9px;
-  font-weight: 700;
-  cursor: pointer;
 }
 
 .motion-toggle-row > div {
@@ -1155,6 +1105,105 @@ input:focus-visible {
 .control-subhead span {
   color: rgba(255, 255, 255, .3);
   font-size: 8px;
+}
+
+.visibility-intro {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 7px;
+  padding: 8px 9px;
+  border: 1px solid color-mix(in srgb, var(--studio-accent), transparent 82%);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--studio-accent), transparent 94%);
+}
+
+.visibility-intro strong {
+  display: flex;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, .71);
+  font-size: 9px;
+  font-weight: 640;
+}
+
+.visibility-intro strong span { color: var(--studio-accent); }
+
+.visibility-intro small {
+  color: rgba(255, 255, 255, .4);
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.linked-range-control { position: relative; }
+
+.linked-range-control .range-control { padding-right: 53px; }
+
+.follow-chip,
+.restore-follow {
+  position: absolute;
+  top: 7px;
+  right: 0;
+  color: rgba(255, 255, 255, .38);
+  font-size: 8px;
+  line-height: 1;
+}
+
+.follow-chip {
+  padding: 3px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .045);
+}
+
+.restore-follow {
+  padding: 3px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.restore-follow:hover {
+  color: var(--studio-accent);
+  background: color-mix(in srgb, var(--studio-accent), transparent 88%);
+}
+
+.coverage-details {
+  margin: 9px 0 7px;
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .022);
+}
+
+.coverage-details summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 9px;
+  color: rgba(255, 255, 255, .58);
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 610;
+  list-style: none;
+}
+
+.coverage-details summary::-webkit-details-marker { display: none; }
+.coverage-details summary::after {
+  content: "⌄";
+  margin-left: 5px;
+  color: rgba(255, 255, 255, .32);
+}
+.coverage-details[open] summary::after { transform: rotate(180deg); }
+
+.coverage-details summary span {
+  margin-left: auto;
+  color: rgba(255, 255, 255, .3);
+  font-size: 8px;
+  font-weight: 500;
+}
+
+.coverage-details > div {
+  padding: 0 9px 4px;
+  border-top: 1px solid rgba(255, 255, 255, .055);
 }
 
 .range-control > span {

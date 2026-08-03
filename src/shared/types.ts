@@ -2,6 +2,13 @@ export type ThemeAppearance = "auto" | "light" | "dark";
 export type BackgroundFit = "cover" | "contain" | "fill";
 export type TextTone = "auto" | "light" | "dark";
 export type RuntimeThemeState = "stock" | "active" | "stale" | "unknown";
+export type BackgroundVisibilityOverride =
+  | "overlayOpacity"
+  | "panelOpacity"
+  | "taskIntensity"
+  | "panelBlur"
+  | "composerOpacity"
+  | "popupOpacity";
 
 /** A bounded transparent layer that can be animated above a still background. */
 export interface ThemeMotionLayer {
@@ -51,6 +58,10 @@ export interface ThemePresentation {
   popupOpacity?: number;
   /** Undefined keeps a theme's supported motion enabled. */
   motionEnabled?: boolean;
+  /** Overall background prominence. Detailed controls can opt out independently. */
+  backgroundVisibility?: number;
+  /** Values manually detached from the overall background prominence control. */
+  backgroundVisibilityOverrides?: BackgroundVisibilityOverride[];
   panelBlur: number;
   radius: number;
   accent: string;
