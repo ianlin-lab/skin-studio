@@ -7,6 +7,8 @@ import type {
   ThemeAppearance,
   ThemeManifest,
   ThemeColors,
+  ThemeMotionLayer,
+  ThemeStillAsset,
   ThemePresentation,
 } from "../../shared/types";
 import { validateSafeCss } from "./safe-css";
@@ -52,10 +54,32 @@ export const DEFAULT_PRESENTATION: ThemePresentation = {
   },
 };
 
+/**
+ * A photo should remain the visual focus of a theme created from a single local
+ * image. Community themes carry their own art direction, so keep their legacy
+ * defaults separate from this import-specific starting point.
+ */
+export const IMAGE_FIRST_PRESENTATION: ThemePresentation = {
+  ...DEFAULT_PRESENTATION,
+  appearance: "dark",
+  brightness: 0.98,
+  overlayOpacity: 0.12,
+  panelOpacity: 0.46,
+  panelBlur: 0,
+  taskIntensity: 0.82,
+  textTone: "light",
+};
+
 export function clamp(value: unknown, min: number, max: number, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.min(max, Math.max(min, value))
     : fallback;
+}
+
+function optionalOpacity(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(1, Math.max(0.3, value))
+    : undefined;
 }
 
 export function safeText(value: unknown, fallback: string, max = 120): string {
@@ -89,6 +113,57 @@ function lineColor(value: unknown, fallback: string): string {
     : fallback;
 }
 
+function boundedInteger(value: unknown, min: number, max: number): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max
+    ? value
+    : null;
+}
+
+function normalizeMotionLayer(value: unknown): ThemeMotionLayer | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const source = value as Partial<ThemeMotionLayer>;
+  if (typeof source.file !== "string") return undefined;
+  const file = path.basename(source.file);
+  const extension = path.extname(file).toLowerCase();
+  const mime = SUPPORTED_MEDIA.get(extension);
+  const canvasWidth = boundedInteger(source.canvasWidth, 1, 8_192);
+  const canvasHeight = boundedInteger(source.canvasHeight, 1, 8_192);
+  const cropX = boundedInteger(source.cropX, 0, 8_191);
+  const cropY = boundedInteger(source.cropY, 0, 8_191);
+  const cropWidth = boundedInteger(source.cropWidth, 1, 8_192);
+  const cropHeight = boundedInteger(source.cropHeight, 1, 8_192);
+  const originX = boundedInteger(source.originX, 0, 8_192);
+  const originY = boundedInteger(source.originY, 0, 8_192);
+  if (
+    file !== source.file || !mime || !canvasWidth || !canvasHeight || cropX === null || cropY === null
+    || !cropWidth || !cropHeight || originX === null || originY === null
+    || cropX + cropWidth > canvasWidth || cropY + cropHeight > canvasHeight
+    || originX > canvasWidth || originY > canvasHeight
+  ) return undefined;
+  return {
+    file,
+    mime,
+    canvasWidth,
+    canvasHeight,
+    cropX,
+    cropY,
+    cropWidth,
+    cropHeight,
+    originX,
+    originY,
+  };
+}
+
+function normalizeStillAsset(value: unknown): ThemeStillAsset | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const source = value as Partial<ThemeStillAsset>;
+  if (typeof source.file !== "string") return undefined;
+  const file = path.basename(source.file);
+  const mime = SUPPORTED_MEDIA.get(path.extname(file).toLowerCase());
+  if (file !== source.file || !mime) return undefined;
+  return { file, mime };
+}
+
 export function normalizeColors(
   value: Partial<ThemeColors> | undefined,
   fallback: ThemeColors = DEFAULT_PRESENTATION.colors,
@@ -113,6 +188,9 @@ export function normalizePresentation(
 ): ThemePresentation {
   const colors = normalizeColors(value?.colors, fallback.colors);
   const accent = color(value?.accent, colors.accent);
+  const composerOpacity = optionalOpacity(value?.composerOpacity);
+  const popupOpacity = optionalOpacity(value?.popupOpacity);
+  const motionEnabled = typeof value?.motionEnabled === "boolean" ? value.motionEnabled : undefined;
   colors.accent = accent;
   return {
     appearance: choice<ThemeAppearance>(value?.appearance, ["auto", "light", "dark"], fallback.appearance),
@@ -123,6 +201,9 @@ export function normalizePresentation(
     brightness: clamp(value?.brightness, 0.25, 1.3, fallback.brightness),
     overlayOpacity: clamp(value?.overlayOpacity, 0, 0.8, fallback.overlayOpacity),
     panelOpacity: clamp(value?.panelOpacity, 0.3, 1, fallback.panelOpacity),
+    ...(composerOpacity === undefined ? {} : { composerOpacity }),
+    ...(popupOpacity === undefined ? {} : { popupOpacity }),
+    ...(motionEnabled === undefined ? {} : { motionEnabled }),
     panelBlur: clamp(value?.panelBlur, 0, 48, fallback.panelBlur),
     radius: clamp(value?.radius, 8, 26, fallback.radius),
     accent,
@@ -148,6 +229,8 @@ export function validateThemeManifest(raw: unknown): ThemeManifest {
     throw new Error("主题素材文件名或格式无效");
   }
   const now = new Date().toISOString();
+  const motion = normalizeMotionLayer(source.asset.motion);
+  const still = normalizeStillAsset(source.asset.still);
   let safeCss: ThemeManifest["safeCss"];
   if (source.safeCss?.contract === "dreamskin-safe-css/1" && typeof source.safeCss.css === "string") {
     const validated = validateSafeCss(source.safeCss.css);
@@ -164,9 +247,11 @@ export function validateThemeManifest(raw: unknown): ThemeManifest {
     asset: {
       file: basename,
       mime: SUPPORTED_MEDIA.get(path.extname(basename).toLowerCase())!,
-      animated: [".gif", ".webp", ".svg"].includes(path.extname(basename).toLowerCase())
+      animated: Boolean(motion) || ([".gif", ".webp", ".svg"].includes(path.extname(basename).toLowerCase())
         ? Boolean(source.asset.animated)
-        : false,
+        : false),
+      ...(still ? { still } : {}),
+      ...(motion ? { motion } : {}),
     },
     presentation: normalizePresentation(source.presentation),
     safeCss,
@@ -220,6 +305,10 @@ export function isAnimatedMedia(extension: string, bytes?: Buffer): boolean {
   return false;
 }
 
-export function mediaUrl(themeId: string, revision: string): string {
-  return `skin-studio://asset/${encodeURIComponent(themeId)}?v=${encodeURIComponent(revision)}`;
+export function mediaUrl(
+  themeId: string,
+  revision: string,
+  variant: "base" | "still" | "motion" = "base",
+): string {
+  return `skin-studio://asset/${encodeURIComponent(themeId)}?v=${encodeURIComponent(revision)}&variant=${variant}`;
 }

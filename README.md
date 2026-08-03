@@ -11,13 +11,13 @@ Skin Studio 是一个只在本机运行的 macOS Codex 换肤工具。第一版�
 - 自动检测 Codex 安装目录、bundle id、版本、Apple Silicon 架构、运行进程和 Skin Studio 主题状态。
 - 2 套内置主题：Aurora Glass（深色玻璃基准）与文艺复兴工坊（古典暗室、铜金强调、静止背景与轻量人物呼吸动效）。旧的三套近似主题不再展示。
 - 文艺复兴工坊同时保留为独立主题文件夹：`bundled-themes/medieval-scriptorium`，可从 Skin Studio 的“导入素材”选择该文件夹重新导入一份可编辑副本。
-- 导入 PNG、JPEG、GIF、动态/静态 WebP 与 SVG；素材保持在本机。
+- 导入 PNG、JPEG、GIF、动态/静态 WebP 与 SVG；动态素材会保留原文件并自动生成本机静态回退图，默认开启动效。
 - 导入 Skin Studio v1 文件夹/ZIP。
 - 转换导入 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin) v1 `theme.json` 文件夹、ZIP 或公开 GitHub 仓库。
 - 背景铺放、水平/垂直焦点、缩放、亮度、遮罩、面板透明度、玻璃模糊、圆角和任务背景强度调节。
 - 完整界面色板：背景、面板、浮层、强调色、强调浅色、辅助色、正文和弱文字。Codex 适配器统一映射主画布、侧栏、顶部栏、模式切换、输入框、按钮、菜单、弹窗、链接、选择态和代码表面。
 - 主题预览、应用、热切换、重新应用、删除导入主题、一键恢复默认。
-- Skin Studio 自身跟随当前预览主题；可在左下角关闭。
+- Skin Studio 自身跟随当前预览主题；可在左下角关闭。支持的动态主题可通过“背景动效”开关同时控制 Skin Studio 与 Codex。
 - 首次应用前明确提示并正常重启 Codex；失败自动尝试原生启动回滚。
 - 独立异常恢复命令，不会根据模糊进程名结束进程。
 
@@ -114,7 +114,7 @@ npm run recover
 - 仅实现 Codex；适配器接口已预留，但没有伪装支持 Kimi、WorkBuddy 等应用。
 - Codex 更新可能让部分面板样式降级。当前已同时适配旧版 `main.main-surface` 与 `26.727.40816` 的 `data-app-shell-main-surface`；恢复入口始终优先。
 - 设置页在不同 Codex 版本可能替换整个 shell；主题在设置页可能只保留基础背景。
-- 动态 WebP 是否播放取决于当前 Electron/Chromium 解码能力；文件会原样保留。
+- 动态 WebP 是否播放取决于当前 Electron/Chromium 解码能力；文件会原样保留。关闭“背景动效”时，Skin Studio 使用导入时生成的静态首帧；主题也可以提供专门调校的静态底图。
 - 第一版不处理 HEIC/TIFF，不安装网络字体，不执行远程 CSS。
 - GitHub `/tree/<ref>` 当前支持不含斜杠的分支/tag；私有仓库不支持。
 - Skin Studio 退出后无法监控 Codex renderer reload；macOS 关闭窗口不会退出应用，若要彻底退出建议先恢复默认。

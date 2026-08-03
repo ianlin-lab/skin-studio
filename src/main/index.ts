@@ -231,14 +231,17 @@ async function registerAssetProtocol(): Promise<void> {
     const url = new URL(request.url);
     if (url.hostname !== "asset") return new Response("Not found", { status: 404 });
     const themeId = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+    const variant = url.searchParams.get("variant");
+    if (variant !== null && variant !== "base" && variant !== "still" && variant !== "motion") {
+      return new Response("Not found", { status: 404 });
+    }
     try {
-      const theme = await repository.get(themeId);
-      const assetPath = await repository.resolveAssetPath(themeId);
-      const bytes = await fs.readFile(assetPath);
+      const asset = await repository.resolveAssetVariant(themeId, variant ?? "base");
+      const bytes = await fs.readFile(asset.filePath);
       return new Response(bytes, {
         status: 200,
         headers: {
-          "Content-Type": theme.asset.mime,
+          "Content-Type": asset.mime,
           "Cache-Control": "no-store",
           "Content-Security-Policy": "default-src 'none'",
         },

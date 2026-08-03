@@ -42,7 +42,12 @@ import type {
   ThemePresentation,
   ThemeSummary,
 } from "../shared/types";
-import { buildStudioBackgroundStyle } from "./studio-theme";
+import {
+  buildStudioBackgroundStyle,
+  buildStudioMotionStyle,
+  displayedBackgroundUrl,
+  resolveTextToneColors,
+} from "./studio-theme";
 
 type Toast = { tone: "success" | "error" | "info"; message: string } | null;
 type ImportMode = "local" | "github" | null;
@@ -61,15 +66,24 @@ const rangeFormatters = {
   taskIntensity: (value: number) => `${Math.round(value * 100)}%`,
 };
 
+function inheritedComposerOpacity(panelOpacity: number): number {
+  return Math.min(0.98, panelOpacity + 0.13);
+}
+
+function inheritedPopupOpacity(panelOpacity: number): number {
+  return Math.min(0.99, panelOpacity + 0.16);
+}
+
 function App() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "builtin" | "imported">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "builtin" | "personal">("all");
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast>(null);
   const [importMode, setImportMode] = useState<ImportMode>(null);
   const [githubUrl, setGithubUrl] = useState("https://github.com/Fei-Away/Codex-Dream-Skin");
+  const [viewport, setViewport] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
   const saveTimers = useRef(new Map<string, number>());
   const pendingSaves = useRef(new Map<string, PendingThemeSave>());
   const saveChains = useRef(new Map<string, Promise<void>>());
@@ -87,6 +101,12 @@ function App() {
     return () => {
       alive = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const updateViewport = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", updateViewport);
+    return () => window.removeEventListener("resize", updateViewport);
   }, []);
 
   useEffect(() => {
@@ -113,12 +133,19 @@ function App() {
   }, [toast]);
 
   const selected = data?.themes.find((theme) => theme.id === selectedId) ?? null;
+  const activeTheme = data?.themes.find((theme) => theme.id === data.activeThemeId) ?? null;
+  const hasPendingCodexChanges = Boolean(
+    selected
+    && selected.id === data?.activeThemeId
+    && data?.codex.runtime.appliedThemeUpdatedAt
+    && data.codex.runtime.appliedThemeUpdatedAt !== selected.updatedAt,
+  );
   const filteredThemes = useMemo(() => {
     if (!data) return [];
     const query = search.trim().toLowerCase();
     return data.themes.filter((theme) => {
       if (sourceFilter === "builtin" && !theme.builtin) return false;
-      if (sourceFilter === "imported" && theme.builtin) return false;
+      if (sourceFilter === "personal" && theme.builtin) return false;
       return !query || `${theme.name} ${theme.description} ${theme.author}`.toLowerCase().includes(query);
     });
   }, [data, search, sourceFilter]);
@@ -126,6 +153,9 @@ function App() {
   const studioStyle = useMemo(() => {
     return buildStudioBackgroundStyle(selected, Boolean(data?.settings.followSelectedTheme));
   }, [selected, data?.settings.followSelectedTheme]);
+  const studioMotionStyle = useMemo(() => (
+    buildStudioMotionStyle(selected, Boolean(data?.settings.followSelectedTheme), viewport)
+  ), [selected, data?.settings.followSelectedTheme, viewport]);
 
   async function refreshDashboard(preferredId?: string) {
     const next = await window.skinStudio.bootstrap();
@@ -182,7 +212,22 @@ function App() {
 
   function updatePresentation(patch: Partial<ThemePresentation>) {
     if (!selected) return;
-    const next = { ...selected.presentation, ...patch };
+    let next = { ...selected.presentation, ...patch };
+    const automaticSurfaceChanged = patch.textTone === "auto"
+      || patch.panelOpacity !== undefined
+      || Boolean(patch.colors && (
+        patch.colors.background !== selected.presentation.colors.background
+        || patch.colors.panel !== selected.presentation.colors.panel
+      ));
+    if (next.textTone === "auto" && automaticSurfaceChanged) {
+      next = {
+        ...next,
+        colors: {
+          ...next.colors,
+          ...resolveTextToneColors("auto", next),
+        },
+      };
+    }
     setData((current) => current ? {
       ...current,
       themes: current.themes.map((theme) => theme.id === selected.id
@@ -199,6 +244,17 @@ function App() {
       colors: {
         ...selected.presentation.colors,
         [key]: value,
+      },
+    });
+  }
+
+  function updateTextTone(tone: ThemePresentation["textTone"]) {
+    if (!selected) return;
+    updatePresentation({
+      textTone: tone,
+      colors: {
+        ...selected.presentation.colors,
+        ...resolveTextToneColors(tone, selected.presentation),
       },
     });
   }
@@ -286,6 +342,7 @@ function App() {
       className={`studio ${data.settings.followSelectedTheme ? "self-themed" : ""}`}
       style={studioStyle}
     >
+      {studioMotionStyle && <div className="studio-motion-layer" style={studioMotionStyle} />}
       <div className="drag-region" />
       <aside className="sidebar">
         <div className="brand">
@@ -350,7 +407,7 @@ function App() {
             {([
               ["all", "全部"],
               ["builtin", "内置"],
-              ["imported", "已导入"],
+              ["personal", "我的主题"],
             ] as const).map(([value, label]) => (
               <button
                 key={value}
@@ -410,6 +467,25 @@ function App() {
 
             <div className="inspector-scroll">
               <ControlSection title="画面" icon={<FileImage size={15} />}>
+                {selected.asset.animated && (selected.asset.still || selected.asset.motion) && (
+                  <div className="motion-toggle-row">
+                    <div>
+                      <strong>背景动效</strong>
+                      <small>关闭后使用静态背景；Studio 与 Codex 会同步</small>
+                    </div>
+                    <button
+                      className={`toggle ${selected.presentation.motionEnabled !== false ? "on" : ""}`}
+                      role="switch"
+                      aria-checked={selected.presentation.motionEnabled !== false}
+                      title={selected.presentation.motionEnabled !== false ? "关闭背景动效" : "开启背景动效"}
+                      onClick={() => updatePresentation({
+                        motionEnabled: selected.presentation.motionEnabled === false,
+                      })}
+                    >
+                      <span />
+                    </button>
+                  </div>
+                )}
                 <SegmentedControl
                   value={selected.presentation.fit}
                   options={[
@@ -451,6 +527,24 @@ function App() {
               </ControlSection>
 
               <ControlSection title="界面" icon={<Sparkles size={15} />}>
+                <div className="background-clarity">
+                  <div>
+                    <strong>想让图片背景更明显？</strong>
+                    <small>降低遮罩与面板覆盖，保留当前配色和位置。</small>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => updatePresentation({
+                      brightness: 1,
+                      overlayOpacity: 0.04,
+                      panelOpacity: 0.52,
+                      panelBlur: 0,
+                      taskIntensity: 0.86,
+                    })}
+                  >
+                    清晰背景
+                  </button>
+                </div>
                 <RangeControl
                   label="画面亮度"
                   value={selected.presentation.brightness}
@@ -478,8 +572,38 @@ function App() {
                   format={rangeFormatters.panelOpacity}
                   onChange={(value) => updatePresentation({ panelOpacity: value })}
                 />
+                <div className="floating-opacity-controls">
+                  <div className="control-subhead">
+                    <strong>浮层可读性</strong>
+                    <span>单独覆盖输入框与弹窗</span>
+                  </div>
+                  <RangeControl
+                    label="聊天输入框"
+                    value={selected.presentation.composerOpacity
+                      ?? inheritedComposerOpacity(selected.presentation.panelOpacity)}
+                    min={0.3}
+                    max={1}
+                    step={0.01}
+                    format={(value) => selected.presentation.composerOpacity === undefined
+                      ? `${Math.round(value * 100)}% · 跟随面板`
+                      : rangeFormatters.panelOpacity(value)}
+                    onChange={(value) => updatePresentation({ composerOpacity: value })}
+                  />
+                  <RangeControl
+                    label="弹窗与菜单"
+                    value={selected.presentation.popupOpacity
+                      ?? inheritedPopupOpacity(selected.presentation.panelOpacity)}
+                    min={0.3}
+                    max={1}
+                    step={0.01}
+                    format={(value) => selected.presentation.popupOpacity === undefined
+                      ? `${Math.round(value * 100)}% · 跟随面板`
+                      : rangeFormatters.panelOpacity(value)}
+                    onChange={(value) => updatePresentation({ popupOpacity: value })}
+                  />
+                </div>
                 <RangeControl
-                  label="玻璃模糊"
+                  label="背景模糊"
                   value={selected.presentation.panelBlur}
                   min={0}
                   max={48}
@@ -498,7 +622,7 @@ function App() {
                     onChange={(value) => updatePresentation({ radius: value })}
                   />
                   <RangeControl
-                    label="任务背景"
+                    label="内容区透明度"
                     value={selected.presentation.taskIntensity}
                     min={0}
                     max={1}
@@ -555,11 +679,11 @@ function App() {
                 <SegmentedControl
                   value={selected.presentation.textTone}
                   options={[
-                    ["auto", "自动文字"],
-                    ["light", "浅色"],
-                    ["dark", "深色"],
+                    ["auto", "自动"],
+                    ["light", "浅色字"],
+                    ["dark", "深色字"],
                   ]}
-                  onChange={(value) => updatePresentation({ textTone: value as ThemePresentation["textTone"] })}
+                  onChange={(value) => updateTextTone(value as ThemePresentation["textTone"])}
                 />
               </ControlSection>
 
@@ -568,7 +692,7 @@ function App() {
                   {selected.source.type === "github" ? <GitBranch size={15} /> : <Archive size={15} />}
                 </span>
                 <div>
-                  <strong>{selected.builtin ? "Skin Studio 内置" : "本地导入"}</strong>
+                  <strong>{selected.builtin ? "Skin Studio 内置" : "个人主题"}</strong>
                   <small>{selected.source.adapter === "dream-skin-v1"
                     ? selected.safeCss ? "Dream Skin v1 · Safe CSS" : "Dream Skin v1 · Legacy"
                     : selected.source.label}</small>
@@ -577,6 +701,17 @@ function App() {
             </div>
 
             <div className="action-dock">
+              <div className={`apply-state ${selected.id === data.activeThemeId
+                ? hasPendingCodexChanges ? "pending" : "applied"
+                : "previewing"}`}>
+                <span />
+                <p>{selected.id === data.activeThemeId
+                  ? hasPendingCodexChanges
+                    ? "右侧调整已保存；尚未应用到 Codex"
+                    : "已应用到 Codex"
+                  : <>仅在 Studio 预览；Codex 当前仍在使用「{activeTheme?.name ?? "原生界面"}」</>}
+                </p>
+              </div>
               <div className="action-row">
                 <button
                   className="primary grow"
@@ -591,7 +726,9 @@ function App() {
                   {busy === "apply" ? <LoaderCircle className="spin" size={17} /> : (
                     selected.id === data.activeThemeId ? <RefreshCw size={17} /> : <Play size={17} />
                   )}
-                  {selected.id === data.activeThemeId ? "重新应用" : "应用到 Codex"}
+                  {selected.id === data.activeThemeId
+                    ? hasPendingCodexChanges ? "应用更改到 Codex" : "重新应用"
+                    : "应用到 Codex"}
                 </button>
                 <button
                   className="secondary icon-only"
@@ -685,7 +822,7 @@ function ThemeCard({
   onSelect: () => void;
 }) {
   const previewStyle = {
-    "--card-image": `url("${theme.assetUrl}")`,
+    "--card-image": `url("${displayedBackgroundUrl(theme)}")`,
     "--card-position": `${theme.presentation.positionX}% ${theme.presentation.positionY}%`,
     "--card-size": theme.presentation.fit === "fill" ? "100% 100%" : theme.presentation.fit,
     "--card-brightness": theme.presentation.brightness,
@@ -724,7 +861,7 @@ function ThemeCard({
       <div className="card-meta">
         <div>
           <strong>{theme.name}</strong>
-          <span>{theme.builtin ? "内置" : theme.source.adapter === "dream-skin-v1" ? "Dream Skin" : "本地"}</span>
+          <span>{theme.builtin ? "内置" : theme.source.adapter === "dream-skin-v1" ? "Dream Skin" : "个人"}</span>
         </div>
         <span className="accent-swatch" style={{ background: theme.presentation.accent }} />
       </div>
@@ -735,7 +872,7 @@ function ThemeCard({
 
 function ThemePreview({ theme }: { theme: ThemeSummary }) {
   const style = {
-    "--preview-image": `url("${theme.assetUrl}")`,
+    "--preview-image": `url("${displayedBackgroundUrl(theme)}")`,
     "--preview-position": `${theme.presentation.positionX}% ${theme.presentation.positionY}%`,
     "--preview-size": theme.presentation.fit === "fill" ? "100% 100%" : theme.presentation.fit,
     "--preview-brightness": theme.presentation.brightness,

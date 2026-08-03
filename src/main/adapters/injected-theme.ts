@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
+import path from "node:path";
 import type { ThemeManifest } from "../../shared/types";
 
 export interface InjectionPayload {
@@ -29,11 +30,22 @@ export async function buildInjectionPayload(
   theme: ThemeManifest,
   assetPath: string,
 ): Promise<InjectionPayload> {
-  const bytes = await fs.readFile(assetPath);
-  const artDataUrl = `data:${theme.asset.mime};base64,${bytes.toString("base64")}`;
   const p = theme.presentation;
   const c = p.colors;
-  const imageSize = p.fit === "fill" ? "100% 100%" : p.fit;
+  const useStillArtwork = p.motionEnabled === false && Boolean(theme.asset.still);
+  const artwork = useStillArtwork ? theme.asset.still! : theme.asset;
+  const artworkPath = useStillArtwork
+    ? path.join(path.dirname(assetPath), artwork.file)
+    : assetPath;
+  const bytes = await fs.readFile(artworkPath);
+  const artDataUrl = `data:${artwork.mime};base64,${bytes.toString("base64")}`;
+  const motion = theme.asset.motion && p.motionEnabled !== false ? theme.asset.motion : undefined;
+  const motionBytes = motion
+    ? await fs.readFile(path.join(path.dirname(assetPath), motion.file))
+    : undefined;
+  const motionDataUrl = motion && motionBytes
+    ? `data:${motion.mime};base64,${motionBytes.toString("base64")}`
+    : undefined;
   const panelBackdrop = p.panelBlur > 0
     ? `blur(${p.panelBlur}px) saturate(1.08)`
     : "none";
@@ -46,6 +58,8 @@ export async function buildInjectionPayload(
   const mainSurfaceAlpha = Math.max(0.08, 0.4 - p.taskIntensity * 0.26);
   const onAccent = readableOn(c.accent);
   const taskPanelAlpha = Math.min(0.98, p.panelOpacity + (1 - p.taskIntensity) * 0.18);
+  const composerAlpha = p.composerOpacity ?? Math.min(0.98, p.panelOpacity + 0.13);
+  const popupAlpha = p.popupOpacity ?? Math.min(0.99, p.panelOpacity + 0.16);
   const veilAlpha = Math.min(
     0.9,
     p.overlayOpacity + Math.max(0, 1 - p.brightness) * 0.6,
@@ -53,6 +67,45 @@ export async function buildInjectionPayload(
   const artworkVeil = p.appearance === "light"
     ? `rgba(255, 252, 247, ${veilAlpha})`
     : `rgba(5, 8, 13, ${veilAlpha})`;
+  const artworkSizeFallback = p.fit === "fill" ? "100% 100%" : p.fit;
+  const motionCss = motionDataUrl && motion ? `
+html[data-skin-studio-theme] body {
+  isolation: isolate !important;
+}
+
+html[data-skin-studio-theme] body::before {
+  content: "" !important;
+  position: fixed !important;
+  left: var(--skin-motion-left, -20000px) !important;
+  top: var(--skin-motion-top, -20000px) !important;
+  width: var(--skin-motion-width, 0px) !important;
+  height: var(--skin-motion-height, 0px) !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  contain: layout paint style !important;
+  background: url(${JSON.stringify(motionDataUrl)}) center / 100% 100% no-repeat !important;
+  transform-origin: var(--skin-motion-origin-x, 50%) var(--skin-motion-origin-y, 50%) !important;
+  will-change: transform !important;
+  animation: skin-studio-person-float 11.8s ease-in-out infinite !important;
+}
+
+html[data-skin-studio-theme] #root,
+html[data-skin-studio-theme] [data-reactroot] {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+@keyframes skin-studio-person-float {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1, 1); }
+  28% { transform: translate3d(var(--skin-motion-x-1), var(--skin-motion-y-1), 0) scale(1.014, 1.022); }
+  62% { transform: translate3d(var(--skin-motion-x-2), var(--skin-motion-y-2), 0) scale(1.009, 1.012); }
+  82% { transform: translate3d(var(--skin-motion-x-3), var(--skin-motion-y-3), 0) scale(1.012, 1.018); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-skin-studio-theme] body::before { animation: none !important; }
+}
+` : "";
   const css = `
 html[data-skin-studio-theme] {
   color-scheme: ${p.appearance === "light" ? "light" : "dark"} !important;
@@ -108,12 +161,12 @@ html[data-skin-studio-theme] {
   --color-token-disabled-foreground: ${c.muted};
   --color-token-input-foreground: ${c.text};
   --color-token-input-placeholder-foreground: ${c.muted};
-  --color-token-input-background: ${rgba(c.panelAlt, Math.min(0.98, p.panelOpacity + 0.13))};
+  --color-token-input-background: ${rgba(c.panelAlt, composerAlpha)};
   --color-token-side-bar-background: ${rgba(c.panel, Math.min(0.98, p.panelOpacity + 0.08))};
   --color-token-sidebar-surface-primary: ${rgba(c.panel, Math.min(0.98, p.panelOpacity + 0.08))};
   --color-token-button-background: ${c.accent};
   --color-token-button-foreground: ${c.panelAlt};
-  --color-token-dropdown-background: ${rgba(c.panel, Math.min(0.99, p.panelOpacity + 0.16))};
+  --color-token-dropdown-background: ${rgba(c.panel, popupAlpha)};
   --color-token-dropdown-foreground: ${c.text};
   --color-token-border: ${c.line};
   --color-token-border-default: ${c.line};
@@ -129,9 +182,9 @@ html[data-skin-studio-theme] {
   --vscode-foreground: ${c.text};
   --vscode-editor-foreground: ${c.text};
   --vscode-input-foreground: ${c.text};
-  --vscode-input-background: ${rgba(c.panelAlt, Math.min(0.98, p.panelOpacity + 0.13))};
+  --vscode-input-background: ${rgba(c.panelAlt, composerAlpha)};
   --vscode-dropdown-foreground: ${c.text};
-  --vscode-dropdown-background: ${rgba(c.panel, Math.min(0.99, p.panelOpacity + 0.16))};
+  --vscode-dropdown-background: ${rgba(c.panel, popupAlpha)};
   --vscode-sideBar-foreground: ${c.text};
   --vscode-sideBar-background: ${rgba(c.panel, Math.min(0.98, p.panelOpacity + 0.08))};
   --vscode-sideBar-border: ${c.line};
@@ -152,7 +205,7 @@ html[data-skin-studio-theme] body {
     linear-gradient(${artworkVeil}, ${artworkVeil}),
     url(${JSON.stringify(artDataUrl)}) !important;
   background-position: center, ${p.positionX}% ${p.positionY}% !important;
-  background-size: 100% 100%, ${imageSize} !important;
+  background-size: 100% 100%, var(--skin-artwork-size, ${artworkSizeFallback}) !important;
   background-repeat: no-repeat !important;
   background-attachment: scroll !important;
 }
@@ -208,7 +261,7 @@ html[data-skin-studio-theme] .composer-surface-chrome,
 html[data-skin-studio-theme] [data-ds-part="composer"] {
   color: var(--skin-text) !important;
   caret-color: var(--skin-accent) !important;
-  background-color: ${rgba(c.panelAlt, Math.min(0.98, p.panelOpacity + 0.13))} !important;
+  background-color: ${rgba(c.panelAlt, composerAlpha)} !important;
   border: 1px solid var(--skin-line) !important;
   border-radius: var(--skin-radius) !important;
   backdrop-filter: ${panelBackdrop} !important;
@@ -232,7 +285,7 @@ html[data-skin-studio-theme] :is([role="dialog"], [role="menu"]),
 html[data-skin-studio-theme] [data-radix-popper-content-wrapper] > *,
 html[data-skin-studio-theme] [data-ds-part="dialog"] {
   color: var(--skin-text) !important;
-  background-color: ${rgba(c.panel, Math.min(0.99, p.panelOpacity + 0.16))} !important;
+  background-color: ${rgba(c.panel, popupAlpha)} !important;
   border-color: var(--skin-line) !important;
   border-radius: var(--skin-radius) !important;
   backdrop-filter: blur(var(--skin-blur)) saturate(1.08) !important;
@@ -267,6 +320,49 @@ html[data-skin-studio-theme] :is(
   [class*="text-muted"]
 ) {
   color: var(--skin-muted) !important;
+}
+
+/* Some Codex settings cards intentionally keep a light native surface. Preserve their contrast
+   instead of forcing the theme's light reading colors into white panels. */
+html[data-skin-studio-theme] [data-skin-studio-light-surface] {
+  --skin-text: #332820;
+  --skin-muted: #6d5a4a;
+  --color-token-foreground: #332820;
+  --color-token-text-primary: #332820;
+  --color-token-text-secondary: #6d5a4a;
+  --color-token-text-tertiary: #6d5a4a;
+  --color-text-foreground: #332820;
+  --color-text-foreground-secondary: #6d5a4a;
+  --color-text-foreground-tertiary: #6d5a4a;
+  --color-token-description-foreground: #6d5a4a;
+  --color-token-input-foreground: #332820;
+  --vscode-foreground: #332820;
+  --vscode-editor-foreground: #332820;
+  --vscode-input-foreground: #332820;
+  color: #332820 !important;
+}
+
+html[data-skin-studio-theme] [data-skin-studio-light-surface] :is(
+  [class~="text-token-text-primary"],
+  [class~="text-token-foreground"],
+  [class~="text-token-foreground-primary"],
+  label,
+  input,
+  select,
+  textarea
+) {
+  color: #332820 !important;
+}
+
+html[data-skin-studio-theme] [data-skin-studio-light-surface] :is(
+  [class~="text-token-text-secondary"],
+  [class~="text-token-muted-foreground"],
+  [class~="text-token-description-foreground"],
+  .text-secondary,
+  .text-tertiary,
+  [class*="text-muted"]
+) {
+  color: #6d5a4a !important;
 }
 
 html[data-skin-studio-theme] aside.app-shell-left-panel :is(button, a) {
@@ -360,8 +456,10 @@ html[data-skin-studio-theme] [class~="bg-token-dropdown-background"],
 html[data-skin-studio-theme] [class~="bg-token-main-surface-secondary"],
 html[data-skin-studio-theme] [class~="bg-token-sidebar-surface-primary"] {
   color: var(--skin-text) !important;
-  background-color: ${rgba(c.panel, Math.min(0.98, p.panelOpacity + 0.12))} !important;
+  background-color: ${rgba(c.panel, popupAlpha)} !important;
 }
+
+${motionCss}
 
 ${theme.safeCss?.css ?? ""}
 `;
@@ -372,6 +470,7 @@ ${theme.safeCss?.css ?? ""}
     .update(JSON.stringify(theme))
     .update(css)
     .update(bytes)
+    .update(motionBytes ?? Buffer.alloc(0))
     .digest("hex")
     .slice(0, 18);
   const expression = `(() => {
@@ -390,6 +489,7 @@ ${theme.safeCss?.css ?? ""}
     root.setAttribute("data-skin-studio-theme", ${JSON.stringify(theme.id)});
     root.setAttribute("data-skin-studio-revision", ${JSON.stringify(revision)});
     const partNodes = new Set();
+    const lightSurfaceNodes = new Set();
     const mark = (selector, part) => {
       for (const node of document.querySelectorAll(selector)) {
         if (!(node instanceof Element)) continue;
@@ -414,6 +514,20 @@ ${theme.safeCss?.css ?? ""}
       mark(".composer-surface-chrome", "composer");
       mark('.composer-surface-chrome [class*="_footer_"]', "composer-toolbar");
       mark('[role="dialog"], [role="menu"], [data-radix-popper-content-wrapper] > *', "dialog");
+      const isOpaqueLightSurface = (node) => {
+        const match = getComputedStyle(node).backgroundColor.match(/rgba?\\(([^)]+)\\)/);
+        if (!match) return false;
+        const channels = match[1].split(",").map((value) => Number.parseFloat(value.trim()));
+        const [red, green, blue, alpha = 1] = channels;
+        if (![red, green, blue, alpha].every(Number.isFinite) || alpha < .72) return false;
+        const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+        return luminance > .7;
+      };
+      for (const node of document.querySelectorAll(':is([role="dialog"], [role="menu"], [class*="settings"], [class*="setting"], [class*="card"], [class*="surface"], [class*="popover"])')) {
+        if (!(node instanceof HTMLElement) || !isOpaqueLightSurface(node)) continue;
+        node.setAttribute("data-skin-studio-light-surface", "");
+        lightSurfaceNodes.add(node);
+      }
     };
     let refreshTimer = null;
     const schedule = () => {
@@ -425,13 +539,98 @@ ${theme.safeCss?.css ?? ""}
     };
     const observer = new MutationObserver(schedule);
     observer.observe(root, { childList: true, subtree: true });
+    const artworkScale = ${JSON.stringify(p.scale)};
+    let artworkNaturalWidth = 0;
+    let artworkNaturalHeight = 0;
+    const updateArtworkLayout = () => {
+      const width = window.innerWidth || root.clientWidth;
+      const height = window.innerHeight || root.clientHeight;
+      if (!width || !height || !artworkNaturalWidth || !artworkNaturalHeight) return;
+      let scaleX;
+      let scaleY;
+      if (${JSON.stringify(p.fit)} === "fill") {
+        scaleX = (width / artworkNaturalWidth) * artworkScale;
+        scaleY = (height / artworkNaturalHeight) * artworkScale;
+      } else {
+        const fitScale = ${JSON.stringify(p.fit)} === "contain"
+          ? Math.min(width / artworkNaturalWidth, height / artworkNaturalHeight)
+          : Math.max(width / artworkNaturalWidth, height / artworkNaturalHeight);
+        scaleX = fitScale * artworkScale;
+        scaleY = fitScale * artworkScale;
+      }
+      root.style.setProperty(
+        "--skin-artwork-size",
+        String(Math.round(artworkNaturalWidth * scaleX)) + "px " + String(Math.round(artworkNaturalHeight * scaleY)) + "px",
+      );
+    };
+    const artworkProbe = new Image();
+    artworkProbe.addEventListener("load", () => {
+      artworkNaturalWidth = artworkProbe.naturalWidth;
+      artworkNaturalHeight = artworkProbe.naturalHeight;
+      updateArtworkLayout();
+    }, { once: true });
+    artworkProbe.src = ${JSON.stringify(artDataUrl)};
+    window.addEventListener("resize", updateArtworkLayout, { passive: true });
+    const motion = ${JSON.stringify(motion ?? null)};
+    const updateMotionLayout = () => {
+      if (!motion) return;
+      const width = window.innerWidth || root.clientWidth;
+      const height = window.innerHeight || root.clientHeight;
+      if (!width || !height) return;
+      let scaleX;
+      let scaleY;
+      if (${JSON.stringify(p.fit)} === "fill") {
+        scaleX = (width / motion.canvasWidth) * artworkScale;
+        scaleY = (height / motion.canvasHeight) * artworkScale;
+      } else {
+        const fitScale = ${JSON.stringify(p.fit)} === "contain"
+          ? Math.min(width / motion.canvasWidth, height / motion.canvasHeight)
+          : Math.max(width / motion.canvasWidth, height / motion.canvasHeight);
+        scaleX = fitScale * artworkScale;
+        scaleY = fitScale * artworkScale;
+      }
+      const imageWidth = motion.canvasWidth * scaleX;
+      const imageHeight = motion.canvasHeight * scaleY;
+      const offsetX = (width - imageWidth) * ${p.positionX / 100};
+      const offsetY = (height - imageHeight) * ${p.positionY / 100};
+      root.style.setProperty("--skin-motion-left", String(offsetX + motion.cropX * scaleX) + "px");
+      root.style.setProperty("--skin-motion-top", String(offsetY + motion.cropY * scaleY) + "px");
+      root.style.setProperty("--skin-motion-width", String(motion.cropWidth * scaleX) + "px");
+      root.style.setProperty("--skin-motion-height", String(motion.cropHeight * scaleY) + "px");
+      root.style.setProperty("--skin-motion-origin-x", String((motion.originX - motion.cropX) * scaleX) + "px");
+      root.style.setProperty("--skin-motion-origin-y", String((motion.originY - motion.cropY) * scaleY) + "px");
+      root.style.setProperty("--skin-motion-x-1", String(4 * scaleX) + "px");
+      root.style.setProperty("--skin-motion-y-1", String(-5 * scaleY) + "px");
+      root.style.setProperty("--skin-motion-x-2", String(-2.5 * scaleX) + "px");
+      root.style.setProperty("--skin-motion-y-2", String(2 * scaleY) + "px");
+      root.style.setProperty("--skin-motion-x-3", String(2 * scaleX) + "px");
+      root.style.setProperty("--skin-motion-y-3", String(1 * scaleY) + "px");
+    };
+    if (motion) {
+      updateMotionLayout();
+      window.addEventListener("resize", updateMotionLayout, { passive: true });
+    }
     refresh();
     const cleanup = () => {
       observer.disconnect();
       if (refreshTimer !== null) clearTimeout(refreshTimer);
+      window.removeEventListener("resize", updateArtworkLayout);
+      artworkProbe.src = "";
+      root.style.removeProperty("--skin-artwork-size");
+      if (motion) {
+        window.removeEventListener("resize", updateMotionLayout);
+        [
+          "--skin-motion-left", "--skin-motion-top", "--skin-motion-width", "--skin-motion-height",
+          "--skin-motion-origin-x", "--skin-motion-origin-y", "--skin-motion-x-1", "--skin-motion-y-1",
+          "--skin-motion-x-2", "--skin-motion-y-2", "--skin-motion-x-3", "--skin-motion-y-3",
+        ].forEach((property) => root.style.removeProperty(property));
+      }
       document.getElementById(styleId)?.remove();
       for (const node of partNodes) node.removeAttribute?.(partAttribute);
       document.querySelectorAll("[" + partAttribute + "]").forEach((node) => node.removeAttribute(partAttribute));
+      for (const node of lightSurfaceNodes) node.removeAttribute?.("data-skin-studio-light-surface");
+      document.querySelectorAll("[data-skin-studio-light-surface]")
+        .forEach((node) => node.removeAttribute("data-skin-studio-light-surface"));
       root.removeAttribute("data-skin-studio-theme");
       root.removeAttribute("data-skin-studio-revision");
       if (window[stateKey]?.cleanup === cleanup) delete window[stateKey];

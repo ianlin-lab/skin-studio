@@ -37,6 +37,7 @@ interface RuntimeState {
   executablePath: string | null;
   revision: string | null;
   injectedTargets: number;
+  appliedThemeUpdatedAt: string | null;
   updatedAt: string;
   lastError?: string;
 }
@@ -52,6 +53,7 @@ const STOCK_STATE: RuntimeState = {
   executablePath: null,
   revision: null,
   injectedTargets: 0,
+  appliedThemeUpdatedAt: null,
   updatedAt: new Date(0).toISOString(),
 };
 
@@ -135,6 +137,7 @@ export class CodexAdapter implements TargetAdapter {
         port: state.port,
         managedLaunch: state.managedLaunch,
         injectedTargets,
+        appliedThemeUpdatedAt: state.appliedThemeUpdatedAt,
         message,
       },
     };
@@ -184,6 +187,7 @@ export class CodexAdapter implements TargetAdapter {
         executablePath: installation.executablePath,
         revision: null,
         injectedTargets: 0,
+        appliedThemeUpdatedAt: null,
         updatedAt: new Date().toISOString(),
       };
       return await this.applyOnPort(theme, assetPath, port, state);
@@ -268,6 +272,7 @@ export class CodexAdapter implements TargetAdapter {
       port,
       revision: payload.revision,
       injectedTargets: verifiedCount,
+      appliedThemeUpdatedAt: theme.updatedAt,
       updatedAt: new Date().toISOString(),
       lastError: undefined,
     };

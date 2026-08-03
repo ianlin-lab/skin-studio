@@ -3,6 +3,26 @@ export type BackgroundFit = "cover" | "contain" | "fill";
 export type TextTone = "auto" | "light" | "dark";
 export type RuntimeThemeState = "stock" | "active" | "stale" | "unknown";
 
+/** A bounded transparent layer that can be animated above a still background. */
+export interface ThemeMotionLayer {
+  file: string;
+  mime: string;
+  canvasWidth: number;
+  canvasHeight: number;
+  cropX: number;
+  cropY: number;
+  cropWidth: number;
+  cropHeight: number;
+  originX: number;
+  originY: number;
+}
+
+/** A non-animated local rendition used when a dynamic background is paused. */
+export interface ThemeStillAsset {
+  file: string;
+  mime: string;
+}
+
 export interface ThemeColors {
   background: string;
   panel: string;
@@ -25,6 +45,12 @@ export interface ThemePresentation {
   brightness: number;
   overlayOpacity: number;
   panelOpacity: number;
+  /** Optional independent opacity for the Codex composer. Undefined follows panelOpacity. */
+  composerOpacity?: number;
+  /** Optional independent opacity for dialogs, menus and popovers. Undefined follows panelOpacity. */
+  popupOpacity?: number;
+  /** Undefined keeps a theme's supported motion enabled. */
+  motionEnabled?: boolean;
   panelBlur: number;
   radius: number;
   accent: string;
@@ -54,6 +80,10 @@ export interface ThemeManifest {
     file: string;
     mime: string;
     animated: boolean;
+    /** Static fallback for GIF, animated WebP and animated SVG backgrounds. */
+    still?: ThemeStillAsset;
+    /** Optional local moving layer. Its static base remains available when motion is disabled. */
+    motion?: ThemeMotionLayer;
   };
   presentation: ThemePresentation;
   safeCss?: {
@@ -67,6 +97,8 @@ export interface ThemeManifest {
 
 export interface ThemeSummary extends ThemeManifest {
   assetUrl: string;
+  stillAssetUrl?: string;
+  motionAssetUrl?: string;
 }
 
 export interface CodexInstallation {
@@ -88,6 +120,8 @@ export interface CodexStatus {
     port: number | null;
     managedLaunch: boolean;
     injectedTargets: number;
+    /** The manifest revision that is currently rendered inside Codex. */
+    appliedThemeUpdatedAt: string | null;
     message: string;
   };
 }

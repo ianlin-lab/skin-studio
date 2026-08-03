@@ -10,6 +10,10 @@ const tinyPng = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
   "base64",
 );
+const tinyGif = Buffer.from(
+  "R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+  "base64",
+);
 
 async function tempDirectory(name: string): Promise<string> {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), `skin-studio-${name}-`));
@@ -29,11 +33,8 @@ describe("ThemeRepository", () => {
     const repository = new ThemeRepository(root);
     await repository.initialize();
     const themes = await repository.list();
-    expect(themes).toHaveLength(2);
-    expect(themes.every((theme) => theme.builtin)).toBe(true);
-    const workshop = themes.find((theme) => theme.id === "medieval-scriptorium");
-    expect(workshop?.name).toBe("文艺复兴工坊");
-    expect(workshop?.asset.animated).toBe(true);
+    expect(themes).toHaveLength(1);
+    expect(themes[0]).toMatchObject({ id: "claude-warm", name: "Claude Warm", builtin: true });
 
     const updated = await repository.update(themes[0].id, {
       presentation: { panelOpacity: 8, positionX: -20, accent: "#ABCDEF" },
@@ -60,6 +61,67 @@ describe("ThemeRepository", () => {
     expect(result.ok).toBe(true);
     expect(result.importedThemeIds).toHaveLength(1);
     expect((await repository.list()).some((theme) => theme.id === result.importedThemeIds![0])).toBe(true);
+    const imported = await repository.get(result.importedThemeIds![0]);
+    expect(imported.presentation.brightness).toBe(0.98);
+    expect(imported.presentation.overlayOpacity).toBe(0.12);
+    expect(imported.presentation.panelOpacity).toBe(0.46);
+    expect(imported.presentation.panelBlur).toBe(0);
+    expect(imported.presentation.taskIntensity).toBe(0.82);
+  });
+
+  it("upgrades only the legacy default layout of an existing local image theme", async () => {
+    const root = await tempDirectory("legacy-image");
+    const data = path.join(root, "data");
+    const repository = new ThemeRepository(data);
+    await repository.initialize();
+    const image = path.join(root, "sample.png");
+    await fs.writeFile(image, tinyPng);
+    const created = await repository.createFromImage(image);
+    const themePath = path.join(data, "themes", created.id, "theme.json");
+    const raw = JSON.parse(await fs.readFile(themePath, "utf8"));
+    raw.presentation = {
+      ...raw.presentation,
+      brightness: 0.82,
+      overlayOpacity: 0.28,
+      panelOpacity: 0.72,
+      panelBlur: 22,
+      taskIntensity: 0.42,
+      textTone: "auto",
+      accent: "#a86b00",
+      colors: { ...raw.presentation.colors, accent: "#a86b00" },
+    };
+    await fs.writeFile(themePath, JSON.stringify(raw));
+
+    const restarted = new ThemeRepository(data);
+    await restarted.initialize();
+    const upgraded = await restarted.get(created.id);
+    expect(upgraded.presentation).toMatchObject({
+      brightness: 0.98,
+      overlayOpacity: 0.12,
+      panelOpacity: 0.46,
+      panelBlur: 0,
+      taskIntensity: 0.82,
+      textTone: "light",
+    });
+    expect(upgraded.presentation.colors.accent).toBe("#a86b00");
+  });
+
+  it("keeps a dynamic source enabled by default and writes a static fallback beside it", async () => {
+    const root = await tempDirectory("animated-image");
+    const repository = new ThemeRepository(path.join(root, "data"));
+    await repository.initialize();
+    const image = path.join(root, "sample.gif");
+    await fs.writeFile(image, tinyGif);
+
+    const result = await repository.importPath(image);
+    const imported = await repository.get(result.importedThemeIds![0]);
+
+    expect(imported.asset.animated).toBe(true);
+    expect(imported.presentation.motionEnabled).toBe(true);
+    expect(imported.asset.still).toEqual({ file: "background-still.png", mime: "image/png" });
+    expect(imported.stillAssetUrl).toContain("variant=still");
+    await expect(fs.access(path.join(root, "data", "themes", imported.id, "background-still.png")))
+      .resolves.toBeUndefined();
   });
 
   it("imports a Dream Skin v1 directory with validated Safe CSS and full colors", async () => {

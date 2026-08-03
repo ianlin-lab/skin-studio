@@ -1,8 +1,10 @@
 import AdmZip from "adm-zip";
 import crypto from "node:crypto";
+import { execFile as execFileCallback } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import type {
   ImportResult,
   StudioSettings,
@@ -11,10 +13,11 @@ import type {
   ThemeSource,
   ThemeSummary,
 } from "../../shared/types";
-import { ACTIVE_BUILTIN_IDS, BUILTIN_THEMES } from "./builtin-themes";
+import { BUILTIN_THEMES } from "./builtin-themes";
 import { validateSafeCss } from "./safe-css";
 import {
   DEFAULT_PRESENTATION,
+  IMAGE_FIRST_PRESENTATION,
   assertRegularMedia,
   isAnimatedMedia,
   mediaUrl,
@@ -29,6 +32,7 @@ import {
 const MAX_ARCHIVE_BYTES = 48 * 1024 * 1024;
 const MAX_EXTRACTED_BYTES = 80 * 1024 * 1024;
 const MAX_ARCHIVE_ENTRIES = 128;
+const execFile = promisify(execFileCallback);
 const DEFAULT_SETTINGS: StudioSettings = {
   followSelectedTheme: true,
   reduceMotion: false,
@@ -37,6 +41,7 @@ const DEFAULT_SETTINGS: StudioSettings = {
 interface ImportedTheme {
   manifest: ThemeManifest;
   sourceAsset: string;
+  sourceStillAsset?: string;
 }
 
 export class ThemeRepository {
@@ -54,7 +59,10 @@ export class ThemeRepository {
 
   async initialize(): Promise<void> {
     await fs.mkdir(this.themesDir, { recursive: true });
-    await Promise.all(BUILTIN_THEMES.map(async ({ manifest, svg, bundledAsset }) => {
+    const hasExistingClaudeWarm = await this.promoteExistingClaudeWarm();
+    await Promise.all(BUILTIN_THEMES
+      .filter(({ manifest }) => manifest.id !== "claude-warm" || !hasExistingClaudeWarm)
+      .map(async ({ manifest, svg, bundledAsset, bundledMotionAsset }) => {
       const themeDir = path.join(this.themesDir, manifest.id);
       await fs.mkdir(themeDir, { recursive: true });
       let seededManifest = manifest;
@@ -83,13 +91,23 @@ export class ThemeRepository {
       } else {
         throw new Error(`内置主题缺少素材：${manifest.id}`);
       }
+      if (manifest.asset.motion && bundledMotionAsset) {
+        const motionSource = path.resolve(this.bundledThemesDir, bundledMotionAsset);
+        const root = `${path.resolve(this.bundledThemesDir)}${path.sep}`;
+        if (!motionSource.startsWith(root)) throw new Error("内置主题动效素材路径无效");
+        await fs.copyFile(motionSource, path.join(themeDir, manifest.asset.motion.file));
+      }
       await writeJsonAtomic(path.join(themeDir, "theme.json"), seededManifest);
-    }));
+      }));
     try {
       await fs.access(this.settingsPath);
     } catch {
       await writeJsonAtomic(this.settingsPath, DEFAULT_SETTINGS);
     }
+    await this.ensureDynamicThemeFallbacks();
+    await this.upgradeLegacyGenericImagePresentation();
+    await this.removeLegacyImageFirstBlur();
+    await this.demotePersonalizedStarterThemes();
   }
 
   async list(): Promise<ThemeSummary[]> {
@@ -104,7 +122,13 @@ export class ThemeRepository {
         }
       })))
       .filter((item): item is ThemeSummary => Boolean(item))
-      .filter((item) => !item.builtin || ACTIVE_BUILTIN_IDS.has(item.id));
+      // Older releases left several unused built-in starter packs in user data.
+      // Keep them recoverable on disk but do not resurrect them in the library.
+      .filter((item) => !item.builtin || (
+        item.name === "Claude Warm"
+        && item.author === "Skin Studio"
+        && item.source.type === "builtin"
+      ));
     return themes.sort((left, right) => {
       if (left.builtin !== right.builtin) return left.builtin ? -1 : 1;
       return right.updatedAt.localeCompare(left.updatedAt);
@@ -123,6 +147,22 @@ export class ThemeRepository {
   async resolveAssetPath(id: string): Promise<string> {
     const { assetPath } = await this.readTheme(id);
     return assetPath;
+  }
+
+  async resolveAssetVariant(id: string, variant: "base" | "still" | "motion"): Promise<{
+    filePath: string;
+    mime: string;
+  }> {
+    const { manifest } = await this.readTheme(id);
+    const selected = variant === "still"
+      ? manifest.asset.still
+      : variant === "motion"
+        ? manifest.asset.motion
+        : manifest.asset;
+    if (!selected) throw new Error("主题不包含所请求的素材版本");
+    const filePath = path.join(this.resolveThemeDir(id), selected.file);
+    await assertRegularMedia(filePath);
+    return { filePath, mime: selected.mime };
   }
 
   resolveThemeDir(id: string): string {
@@ -152,6 +192,7 @@ export class ThemeRepository {
   async createFromImage(filePath: string, sourceType: ThemeSource["type"] = "image"): Promise<ThemeSummary> {
     const media = await assertRegularMedia(filePath);
     const bytes = await fs.readFile(filePath);
+    const animated = isAnimatedMedia(media.extension, bytes);
     const name = safeText(path.basename(filePath, media.extension), "我的主题", 80);
     const id = safeId(name);
     const now = new Date().toISOString();
@@ -161,7 +202,7 @@ export class ThemeRepository {
       schemaVersion: 1,
       id,
       name,
-      description: media.extension === ".gif" || isAnimatedMedia(media.extension, bytes)
+      description: media.extension === ".gif" || animated
         ? "由本地动态素材生成"
         : "由本地图片生成",
       author: "Local",
@@ -169,11 +210,12 @@ export class ThemeRepository {
       asset: {
         file: assetFile,
         mime: media.mime,
-        animated: isAnimatedMedia(media.extension, bytes),
+        animated,
+        ...(animated ? { still: { file: "background-still.png", mime: "image/png" } } : {}),
       },
       presentation: {
-        ...DEFAULT_PRESENTATION,
-        appearance: "dark",
+        ...IMAGE_FIRST_PRESENTATION,
+        ...(animated ? { motionEnabled: true } : {}),
       },
       source: {
         type: sourceType,
@@ -292,6 +334,23 @@ export class ThemeRepository {
         await fs.mkdir(themeDirectory, { recursive: true });
         await fs.writeFile(path.join(themeDirectory, "theme.json"), themeBytes, { mode: 0o600 });
         await fs.writeFile(path.join(themeDirectory, imageName), imageBytes, { mode: 0o600 });
+        if (raw.format === "skin-studio-theme-v1") {
+          const packagedAsset = raw.asset as {
+            still?: { file?: unknown };
+            motion?: { file?: unknown };
+          } | undefined;
+          const companions = [packagedAsset?.still?.file, packagedAsset?.motion?.file]
+            .filter((name): name is string => typeof name === "string"
+              && path.basename(name) === name
+              && name !== imageName);
+          for (const name of [...new Set(companions)]) {
+            const remoteCompanion = remoteDirectory === "." ? name : `${remoteDirectory}/${name}`;
+            const companionBytes = await this.fetchGithubFile(owner, repo, ref, remoteCompanion, 30 * 1024 * 1024);
+            downloadedBytes += companionBytes.length;
+            if (downloadedBytes > 64 * 1024 * 1024) throw new Error("GitHub 主题素材总计超过 64MB");
+            await fs.writeFile(path.join(themeDirectory, name), companionBytes, { mode: 0o600 });
+          }
+        }
         const remoteCss = remoteDirectory === "." ? "theme.css" : `${remoteDirectory}/theme.css`;
         try {
           const cssBytes = await this.fetchGithubFile(owner, repo, ref, remoteCss, 262_144);
@@ -349,6 +408,8 @@ export class ThemeRepository {
     return {
       ...manifest,
       assetUrl: mediaUrl(manifest.id, manifest.updatedAt),
+      ...(manifest.asset.still ? { stillAssetUrl: mediaUrl(manifest.id, manifest.updatedAt, "still") } : {}),
+      ...(manifest.asset.motion ? { motionAssetUrl: mediaUrl(manifest.id, manifest.updatedAt, "motion") } : {}),
     };
   }
 
@@ -472,12 +533,20 @@ export class ThemeRepository {
       const original = validateThemeManifest(raw);
       const sourceAsset = path.join(directory, original.asset.file);
       await assertRegularMedia(sourceAsset);
+      const sourceStillAsset = original.asset.still
+        ? path.join(directory, original.asset.still.file)
+        : undefined;
+      if (sourceStillAsset) await assertRegularMedia(sourceStillAsset);
       const id = safeId(original.name);
       const now = new Date().toISOString();
       return {
         sourceAsset,
+        sourceStillAsset,
         manifest: {
           ...original,
+          asset: original.asset.animated && !original.asset.still
+            ? { ...original.asset, still: { file: "background-still.png", mime: "image/png" } }
+            : original.asset,
           id,
           builtin: false,
           source: { ...source, adapter: "skin-studio-v1", importedAt: now },
@@ -544,6 +613,7 @@ export class ThemeRepository {
       line: colors.line as string | undefined,
     }, DEFAULT_PRESENTATION.colors);
     const accent = importedColors.accent;
+    const animated = isAnimatedMedia(media.extension, await fs.readFile(sourceAsset));
     const presentation = normalizePresentation({
       ...DEFAULT_PRESENTATION,
       appearance,
@@ -554,6 +624,7 @@ export class ThemeRepository {
       textTone: appearance === "light" ? "dark" : appearance === "dark" ? "light" : "auto",
       panelOpacity: appearance === "light" ? 0.78 : 0.7,
       overlayOpacity: appearance === "light" ? 0.1 : 0.28,
+      ...(animated ? { motionEnabled: true } : {}),
       taskIntensity: art.taskMode === "full" ? 0.72 : art.taskMode === "off" ? 0.12 : 0.4,
       colors: importedColors,
     });
@@ -570,7 +641,8 @@ export class ThemeRepository {
         asset: {
           file: `background${media.extension}`,
           mime: media.mime,
-          animated: isAnimatedMedia(media.extension, await fs.readFile(sourceAsset)),
+          animated,
+          ...(animated ? { still: { file: "background-still.png", mime: "image/png" } } : {}),
         },
         presentation,
         safeCss,
@@ -591,10 +663,184 @@ export class ThemeRepository {
     await fs.mkdir(themeDir, { recursive: false });
     try {
       await fs.copyFile(imported.sourceAsset, path.join(themeDir, imported.manifest.asset.file));
+      if (imported.manifest.asset.still) {
+        const stillPath = path.join(themeDir, imported.manifest.asset.still.file);
+        if (imported.sourceStillAsset) {
+          await fs.copyFile(imported.sourceStillAsset, stillPath);
+        } else {
+          await this.extractStaticFrame(imported.sourceAsset, stillPath);
+        }
+      }
       await writeJsonAtomic(path.join(themeDir, "theme.json"), imported.manifest);
     } catch (error) {
       await fs.rm(themeDir, { recursive: true, force: true });
       throw error;
+    }
+  }
+
+  private async extractStaticFrame(sourcePath: string, destinationPath: string): Promise<void> {
+    await execFile("/usr/bin/sips", ["-s", "format", "png", sourcePath, "--out", destinationPath], {
+      timeout: 20_000,
+      maxBuffer: 1_000_000,
+    });
+    const generated = await assertRegularMedia(destinationPath, 16 * 1024 * 1024);
+    if (generated.mime !== "image/png") throw new Error("静态回退图格式不正确");
+  }
+
+  /** Upgrades already-imported animated themes once, without touching handcrafted layered themes. */
+  private async ensureDynamicThemeFallbacks(): Promise<void> {
+    const entries = await fs.readdir(this.themesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+      try {
+        const themeDir = this.resolveThemeDir(entry.name);
+        const manifest = validateThemeManifest(JSON.parse(
+          await fs.readFile(path.join(themeDir, "theme.json"), "utf8"),
+        ));
+        if (!manifest.asset.animated || manifest.asset.still || manifest.asset.motion) continue;
+        const still = { file: "background-still.png", mime: "image/png" } as const;
+        const stillPath = path.join(themeDir, still.file);
+        await this.extractStaticFrame(path.join(themeDir, manifest.asset.file), stillPath);
+        await writeJsonAtomic(path.join(themeDir, "theme.json"), {
+          ...manifest,
+          asset: { ...manifest.asset, still },
+          updatedAt: new Date().toISOString(),
+        });
+      } catch {
+        // Keep an existing dynamic theme usable even if its optional fallback cannot be generated.
+      }
+    }
+  }
+
+  /** Keeps an existing user-customized Claude Warm as the sole default without creating a duplicate. */
+  private async promoteExistingClaudeWarm(): Promise<boolean> {
+    const entries = await fs.readdir(this.themesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+      try {
+        const themeDir = this.resolveThemeDir(entry.name);
+        const manifest = validateThemeManifest(JSON.parse(
+          await fs.readFile(path.join(themeDir, "theme.json"), "utf8"),
+        ));
+        const isClaudeWarm = manifest.name === "Claude Warm"
+          && manifest.author === "Skin Studio"
+          && manifest.asset.file === "background.svg";
+        if (!isClaudeWarm) continue;
+        if (!manifest.builtin || manifest.source.type !== "builtin") {
+          await writeJsonAtomic(path.join(themeDir, "theme.json"), {
+            ...manifest,
+            builtin: true,
+            source: {
+              type: "builtin",
+              label: "Skin Studio 内置 · Claude Warm",
+              adapter: "skin-studio-v1",
+            },
+          });
+        }
+        return true;
+      } catch {
+        // Continue scanning even if a third-party folder has an invalid manifest.
+      }
+    }
+    return false;
+  }
+
+  /** The original Aurora and Renaissance examples are now treated as editable personal themes. */
+  private async demotePersonalizedStarterThemes(): Promise<void> {
+    for (const id of ["aurora-glass", "medieval-scriptorium"]) {
+      try {
+        const themeDir = this.resolveThemeDir(id);
+        const manifest = validateThemeManifest(JSON.parse(
+          await fs.readFile(path.join(themeDir, "theme.json"), "utf8"),
+        ));
+        if (!manifest.builtin) continue;
+        await writeJsonAtomic(path.join(themeDir, "theme.json"), {
+          ...manifest,
+          builtin: false,
+          source: {
+            type: "folder",
+            label: `个人主题 · ${manifest.name}`,
+            adapter: "skin-studio-v1",
+            importedAt: manifest.source.importedAt,
+          },
+        });
+      } catch {
+        // A removed personal theme should never block startup.
+      }
+    }
+  }
+
+  /**
+   * The first local-image preset was tuned like a dark glass community theme.
+   * Its opaque panels can hide the very photo a user just imported. Upgrade
+   * only untouched layout defaults and retain every color, crop, and other
+   * user edit on existing themes.
+   */
+  private async upgradeLegacyGenericImagePresentation(): Promise<void> {
+    const entries = await fs.readdir(this.themesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+      try {
+        const themeDir = this.resolveThemeDir(entry.name);
+        const manifest = validateThemeManifest(JSON.parse(
+          await fs.readFile(path.join(themeDir, "theme.json"), "utf8"),
+        ));
+        const presentation = manifest.presentation;
+        const isUntouchedLegacyImageLayout = !manifest.builtin
+          && manifest.source.adapter === "generic-image"
+          && presentation.appearance === "dark"
+          && presentation.brightness === DEFAULT_PRESENTATION.brightness
+          && presentation.overlayOpacity === DEFAULT_PRESENTATION.overlayOpacity
+          && presentation.panelOpacity === DEFAULT_PRESENTATION.panelOpacity
+          && presentation.panelBlur === DEFAULT_PRESENTATION.panelBlur
+          && presentation.taskIntensity === DEFAULT_PRESENTATION.taskIntensity;
+        if (!isUntouchedLegacyImageLayout) continue;
+        await writeJsonAtomic(path.join(themeDir, "theme.json"), {
+          ...manifest,
+          presentation: {
+            ...presentation,
+            brightness: IMAGE_FIRST_PRESENTATION.brightness,
+            overlayOpacity: IMAGE_FIRST_PRESENTATION.overlayOpacity,
+            panelOpacity: IMAGE_FIRST_PRESENTATION.panelOpacity,
+            panelBlur: IMAGE_FIRST_PRESENTATION.panelBlur,
+            taskIntensity: IMAGE_FIRST_PRESENTATION.taskIntensity,
+            textTone: presentation.textTone === "auto" ? IMAGE_FIRST_PRESENTATION.textTone : presentation.textTone,
+          },
+          updatedAt: new Date().toISOString(),
+        });
+      } catch {
+        // A malformed third-party theme should not prevent the library from opening.
+      }
+    }
+  }
+
+  /** Removes the first image-first preset's residual glass blur, but only when untouched. */
+  private async removeLegacyImageFirstBlur(): Promise<void> {
+    const entries = await fs.readdir(this.themesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+      try {
+        const themeDir = this.resolveThemeDir(entry.name);
+        const manifest = validateThemeManifest(JSON.parse(
+          await fs.readFile(path.join(themeDir, "theme.json"), "utf8"),
+        ));
+        const p = manifest.presentation;
+        const isPreviousImageFirstDefault = !manifest.builtin
+          && manifest.source.adapter === "generic-image"
+          && p.brightness === 0.98
+          && p.overlayOpacity === 0.12
+          && p.panelOpacity === 0.46
+          && p.panelBlur === 10
+          && p.taskIntensity === 0.82;
+        if (!isPreviousImageFirstDefault) continue;
+        await writeJsonAtomic(path.join(themeDir, "theme.json"), {
+          ...manifest,
+          presentation: { ...p, panelBlur: 0 },
+          updatedAt: new Date().toISOString(),
+        });
+      } catch {
+        // Keep user-authored themes available even if an old manifest is malformed.
+      }
     }
   }
 
