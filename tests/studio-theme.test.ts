@@ -52,6 +52,39 @@ describe("Studio background theme mapping", () => {
     expect(style["--studio-panel-surface"]).toBe("rgba(24, 26, 33, 0.720)");
   });
 
+  it("derives readable Studio UI tokens without changing a light theme's manifest", () => {
+    const style = buildStudioBackgroundStyle(theme({
+      appearance: "light",
+      panelOpacity: 0.94,
+      colors: {
+        ...DEFAULT_PRESENTATION.colors,
+        background: "#f7f4ed",
+        panel: "#eee9df",
+        text: "#2d2926",
+        muted: "#756d66",
+        accent: "#c15f3c",
+      },
+    }), true);
+    expect(style["--studio-ui-text"]).toBe("#2d2926");
+    expect(style["--studio-ui-muted"]).toBe("#756d66");
+    expect(style["--studio-ui-on-accent"]).toBe("#201b17");
+  });
+
+  it("keeps the light foreground contract for a dark Studio surface", () => {
+    const style = buildStudioBackgroundStyle(theme({
+      appearance: "dark",
+      colors: {
+        ...DEFAULT_PRESENTATION.colors,
+        background: "#101116",
+        panel: "#181a21",
+        text: "#f7f7f5",
+        muted: "#b8bac3",
+      },
+    }), true);
+    expect(style["--studio-ui-text"]).toBe("#f7f7f5");
+    expect(style["--studio-ui-muted"]).toBe("#b8bac3");
+  });
+
   it("keeps a bounded dark readability veil for dark themes", () => {
     const style = buildStudioBackgroundStyle(theme({
       appearance: "dark",

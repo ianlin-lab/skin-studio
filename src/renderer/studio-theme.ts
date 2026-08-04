@@ -35,6 +35,24 @@ function withAlpha(color: string, alpha: number): string {
   return `rgba(${red}, ${green}, ${blue}, ${clamp(alpha, 0, 1).toFixed(3)})`;
 }
 
+function contrastRatio(foreground: string, background: string): number {
+  const [lighter, darker] = [relativeLuminance(foreground), relativeLuminance(background)]
+    .sort((left, right) => right - left);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function readableText(preferred: string, surface: string): string {
+  if (contrastRatio(preferred, surface) >= 4.5) return preferred;
+  return contrastRatio(DARK_TEXT.text, surface) >= contrastRatio(LIGHT_TEXT.text, surface)
+    ? DARK_TEXT.text
+    : LIGHT_TEXT.text;
+}
+
+function readableMuted(preferred: string, text: string, surface: string): string {
+  if (contrastRatio(preferred, surface) >= 3) return preferred;
+  return blend(text, surface, 0.68);
+}
+
 /** Returns an accessible paired preset for primary and secondary text. */
 export function resolveTextToneColors(
   tone: TextTone,
@@ -123,6 +141,12 @@ export function buildStudioBackgroundStyle(
   // a faint decorative approximation that disappears behind a light veil.
   const backgroundBlur = clamp(presentation.panelBlur, 0, 32);
   const panelOpacity = clamp(presentation.panelOpacity, 0.3, 1);
+  const panelSurface = blend(presentation.colors.panel, presentation.colors.background, panelOpacity);
+  const text = readableText(presentation.colors.text, panelSurface);
+  const muted = readableMuted(presentation.colors.muted, text, panelSurface);
+  const faint = blend(text, panelSurface, 0.54);
+  const line = blend(text, panelSurface, 0.18);
+  const onAccent = readableText(text, presentation.colors.accent);
   return {
     "--studio-bg-color": presentation.colors.background,
     "--studio-bg-image": `url("${displayedBackgroundUrl(theme)}")`,
@@ -142,5 +166,11 @@ export function buildStudioBackgroundStyle(
     "--studio-accent": presentation.accent,
     "--studio-theme-panel": presentation.colors.panel,
     "--studio-theme-text": presentation.colors.text,
+    "--studio-ui-text": text,
+    "--studio-ui-muted": muted,
+    "--studio-ui-faint": faint,
+    "--studio-ui-line": line,
+    "--studio-ui-soft": withAlpha(text, 0.08),
+    "--studio-ui-on-accent": onAccent,
   };
 }

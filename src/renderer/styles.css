@@ -1745,6 +1745,90 @@ input:focus-visible {
   font-size: 11px;
 }
 
+/* Studio-only contrast contract. Theme manifests stay untouched; these tokens
+   make the preview readable on both paper-light and glass-dark themes. */
+.studio.self-themed {
+  color: var(--studio-ui-text);
+  --panel-line: var(--studio-ui-line);
+}
+
+.studio.self-themed button,
+.studio.self-themed input {
+  color: var(--studio-ui-text);
+}
+
+.studio.self-themed .brand span,
+.studio.self-themed .target-copy > span,
+.studio.self-themed .target-copy small,
+.studio.self-themed .safety-note span,
+.studio.self-themed .self-skin-row small,
+.studio.self-themed .library-header p:last-child,
+.studio.self-themed .theme-card > p,
+.studio.self-themed .card-meta span:not(.accent-swatch),
+.studio.self-themed .add-card,
+.studio.self-themed .source-box small,
+.studio.self-themed .motion-toggle-row small,
+.studio.self-themed .transparency-copy,
+.studio.self-themed .range-control small,
+.studio.self-themed .follow-chip,
+.studio.self-themed .setting-disclosure > summary small,
+.studio.self-themed .setting-disclosure > summary > svg:last-child,
+.studio.self-themed .apply-state p,
+.studio.self-themed .action-dock > small {
+  color: var(--studio-ui-muted);
+}
+
+.studio.self-themed .target-icon,
+.studio.self-themed .nav-item,
+.studio.self-themed .nav-count,
+.studio.self-themed .segmented button,
+.studio.self-themed .search,
+.studio.self-themed .search input::placeholder,
+.studio.self-themed .icon-button,
+.studio.self-themed .control-section h3,
+.studio.self-themed .range-control b,
+.studio.self-themed .color-control,
+.studio.self-themed .source-icon,
+.studio.self-themed .add-card > span,
+.studio.self-themed .restore-follow {
+  color: var(--studio-ui-faint);
+}
+
+.studio.self-themed .nav-item:hover,
+.studio.self-themed .nav-item.active,
+.studio.self-themed .segmented button.selected,
+.studio.self-themed .icon-button:hover,
+.studio.self-themed .motion-toggle-row strong,
+.studio.self-themed .transparency-copy + .range-control b,
+.studio.self-themed .setting-disclosure > summary,
+.studio.self-themed .disclosure-title {
+  color: var(--studio-ui-text);
+}
+
+.studio.self-themed .primary {
+  color: var(--studio-ui-on-accent);
+}
+
+.studio.self-themed .secondary,
+.studio.self-themed .segmented,
+.studio.self-themed .search,
+.studio.self-themed .color-control,
+.studio.self-themed .target-card,
+.studio.self-themed .nav-count,
+.studio.self-themed .apply-state,
+.studio.self-themed .icon-button {
+  border-color: var(--studio-ui-line);
+}
+
+.studio.self-themed .nav-item.active,
+.studio.self-themed .segmented button.selected,
+.studio.self-themed .target-card,
+.studio.self-themed .color-control,
+.studio.self-themed .icon-button,
+.studio.self-themed .follow-chip {
+  background-color: var(--studio-ui-soft);
+}
+
 .spin {
   animation: spin .8s linear infinite;
 }
