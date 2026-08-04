@@ -30,6 +30,11 @@ function blend(foreground: string, background: string, alpha: number): string {
   return `#${channels.map((value) => value.toString(16).padStart(2, "0")).join("")}`;
 }
 
+function withAlpha(color: string, alpha: number): string {
+  const [red, green, blue] = rgb(color);
+  return `rgba(${red}, ${green}, ${blue}, ${clamp(alpha, 0, 1).toFixed(3)})`;
+}
+
 /** Returns an accessible paired preset for primary and secondary text. */
 export function resolveTextToneColors(
   tone: TextTone,
@@ -114,7 +119,10 @@ export function buildStudioBackgroundStyle(
   const overlayOpacity = Number((lightBackdrop
     ? clamp(presentation.overlayOpacity + 0.06, 0.1, 0.3)
     : clamp(presentation.overlayOpacity + 0.16, 0.26, 0.5)).toFixed(3));
-  const backgroundBlur = clamp(presentation.panelBlur * 0.45, 0, 14);
+  // Studio is a live preview: use the same blur source as Codex rather than
+  // a faint decorative approximation that disappears behind a light veil.
+  const backgroundBlur = clamp(presentation.panelBlur, 0, 32);
+  const panelOpacity = clamp(presentation.panelOpacity, 0.3, 1);
   return {
     "--studio-bg-color": presentation.colors.background,
     "--studio-bg-image": `url("${displayedBackgroundUrl(theme)}")`,
@@ -125,6 +133,12 @@ export function buildStudioBackgroundStyle(
     "--studio-bg-overlay-color": lightBackdrop ? presentation.colors.background : "#080b10",
     "--studio-bg-overlay-opacity": overlayOpacity,
     "--studio-bg-blur": `${backgroundBlur.toFixed(1)}px`,
+    "--studio-bg-bleed": (backgroundBlur / 320).toFixed(3),
+    "--studio-glass-blur": `${backgroundBlur.toFixed(1)}px`,
+    "--studio-card-blur": `${(backgroundBlur * 0.42).toFixed(1)}px`,
+    "--studio-panel-surface": withAlpha(presentation.colors.panel, panelOpacity),
+    "--studio-library-surface": withAlpha(presentation.colors.background, panelOpacity * 0.78),
+    "--studio-card-surface": withAlpha(presentation.colors.panelAlt, Math.max(0.22, panelOpacity * 0.42)),
     "--studio-accent": presentation.accent,
     "--studio-theme-panel": presentation.colors.panel,
     "--studio-theme-text": presentation.colors.text,

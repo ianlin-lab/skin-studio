@@ -47,7 +47,9 @@ describe("Studio background theme mapping", () => {
     expect(style["--studio-bg-color"]).toBe("#f7f4ed");
     expect(style["--studio-bg-overlay-color"]).toBe("#f7f4ed");
     expect(style["--studio-bg-overlay-opacity"]).toBe(0.1);
-    expect(style["--studio-bg-blur"]).toBe("6.3px");
+    expect(style["--studio-bg-blur"]).toBe("14.0px");
+    expect(style["--studio-glass-blur"]).toBe("14.0px");
+    expect(style["--studio-panel-surface"]).toBe("rgba(24, 26, 33, 0.720)");
   });
 
   it("keeps a bounded dark readability veil for dark themes", () => {
@@ -58,7 +60,8 @@ describe("Studio background theme mapping", () => {
     }), true);
     expect(style["--studio-bg-overlay-color"]).toBe("#080b10");
     expect(style["--studio-bg-overlay-opacity"]).toBe(0.34);
-    expect(style["--studio-bg-blur"]).toBe("9.0px");
+    expect(style["--studio-bg-blur"]).toBe("20.0px");
+    expect(style["--studio-glass-blur"]).toBe("20.0px");
   });
 
   it("returns no theme variables when Studio follow mode is disabled", () => {

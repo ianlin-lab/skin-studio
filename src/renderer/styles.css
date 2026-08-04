@@ -67,15 +67,14 @@ input:focus-visible {
   background-position: var(--studio-bg-position);
   background-size: var(--studio-bg-size);
   background-repeat: no-repeat;
-  filter: brightness(var(--studio-bg-brightness));
-  transform: scale(var(--studio-bg-scale));
+  filter: brightness(var(--studio-bg-brightness)) blur(var(--studio-bg-blur));
+  transform: scale(calc(var(--studio-bg-scale) + var(--studio-bg-bleed)));
 }
 
 .studio.self-themed::after {
   z-index: -1;
   opacity: var(--studio-bg-overlay-opacity);
   background: var(--studio-bg-overlay-color);
-  backdrop-filter: blur(var(--studio-bg-blur)) saturate(.92);
 }
 
 .studio-motion-layer {
@@ -121,6 +120,11 @@ input:focus-visible {
   border-right: 1px solid var(--panel-line);
   background: rgba(20, 21, 27, .72);
   backdrop-filter: blur(36px) saturate(1.2);
+}
+
+.studio.self-themed .sidebar {
+  background: var(--studio-panel-surface);
+  backdrop-filter: blur(var(--studio-glass-blur)) saturate(1.2);
 }
 
 .brand {
@@ -378,6 +382,11 @@ input:focus-visible {
   scrollbar-width: thin;
 }
 
+.studio.self-themed .library {
+  background: var(--studio-library-surface);
+  backdrop-filter: blur(var(--studio-glass-blur)) saturate(1.08);
+}
+
 .library-header {
   display: flex;
   align-items: flex-end;
@@ -542,6 +551,12 @@ input:focus-visible {
   background: rgba(255, 255, 255, .037);
   cursor: pointer;
   transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+
+.studio.self-themed .theme-card,
+.studio.self-themed .add-card {
+  background: var(--studio-card-surface);
+  backdrop-filter: blur(var(--studio-card-blur)) saturate(1.04);
 }
 
 .theme-card:hover {
@@ -812,6 +827,11 @@ input:focus-visible {
   border-left: 1px solid var(--panel-line);
   background: rgba(23, 24, 30, .82);
   backdrop-filter: blur(34px) saturate(1.15);
+}
+
+.studio.self-themed .inspector {
+  background: var(--studio-panel-surface);
+  backdrop-filter: blur(var(--studio-glass-blur)) saturate(1.15);
 }
 
 .inspector-head {
@@ -1122,7 +1142,7 @@ input:focus-visible {
 
 .linked-range-control { position: relative; }
 
-.linked-range-control .range-control { padding-right: 53px; }
+.linked-range-control .range-control { padding-right: 66px; }
 
 .follow-chip,
 .restore-follow {
@@ -1132,6 +1152,7 @@ input:focus-visible {
   color: rgba(255, 255, 255, .38);
   font-size: 8px;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .follow-chip {
@@ -1141,11 +1162,14 @@ input:focus-visible {
 }
 
 .restore-follow {
-  padding: 3px 4px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
+  min-width: 57px;
+  padding: 4px 5px;
+  border: 1px solid color-mix(in srgb, var(--studio-accent), transparent 72%);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--studio-accent), transparent 91%);
   font: inherit;
+  font-size: 8px;
+  font-weight: 650;
   cursor: pointer;
 }
 
@@ -1396,6 +1420,11 @@ input:focus-visible {
   border-top: 1px solid rgba(255, 255, 255, .07);
   background: rgba(20, 21, 27, .8);
   backdrop-filter: blur(22px);
+}
+
+.studio.self-themed .action-dock {
+  background: var(--studio-panel-surface);
+  backdrop-filter: blur(var(--studio-glass-blur)) saturate(1.1);
 }
 
 .apply-state {
