@@ -21,7 +21,8 @@ body,
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -30,7 +31,8 @@ button {
 }
 
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+textarea:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--studio-accent), white 10%);
   outline-offset: 2px;
 }
@@ -139,12 +141,18 @@ input:focus-visible {
   width: 34px;
   height: 34px;
   place-items: center;
-  color: white;
-  border: 1px solid rgba(255, 255, 255, .18);
+  overflow: hidden;
+  border: 1px solid rgba(219, 176, 91, .36);
   border-radius: 11px;
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--studio-accent), white 18%), var(--studio-accent));
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--studio-accent), transparent 70%);
+  background: #0e1927;
+  box-shadow: 0 8px 20px rgba(15, 10, 5, .32);
+}
+
+.brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .brand-mark.large {
@@ -166,8 +174,7 @@ input:focus-visible {
 .brand span {
   color: rgba(255, 255, 255, .42);
   font-size: 10px;
-  letter-spacing: .07em;
-  text-transform: uppercase;
+  letter-spacing: .01em;
 }
 
 .target-card {
@@ -283,42 +290,6 @@ input:focus-visible {
   flex: 1;
 }
 
-.safety-note {
-  display: flex;
-  gap: 9px;
-  align-items: center;
-  padding: 10px;
-  border: 1px solid rgba(104, 227, 174, .11);
-  border-radius: 12px;
-  background: rgba(68, 166, 126, .055);
-}
-
-.safety-icon {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 auto;
-  place-items: center;
-  color: #6fe0ad;
-  border-radius: 9px;
-  background: rgba(103, 226, 174, .1);
-}
-
-.safety-note > div:last-child {
-  display: grid;
-  gap: 2px;
-}
-
-.safety-note strong {
-  font-size: 11px;
-}
-
-.safety-note span {
-  color: rgba(255, 255, 255, .42);
-  font-size: 9px;
-  line-height: 1.4;
-}
-
 .self-skin-row {
   display: flex;
   align-items: center;
@@ -349,10 +320,13 @@ input:focus-visible {
   position: relative;
   width: 30px;
   height: 18px;
+  padding: 0;
   flex: 0 0 auto;
+  border: 0;
   border-radius: 10px;
   background: rgba(255, 255, 255, .13);
-  transition: background .2s ease;
+  cursor: pointer;
+  transition: background .2s ease, box-shadow .2s ease;
 }
 
 .toggle i {
@@ -373,6 +347,10 @@ input:focus-visible {
 .toggle.on i {
   background: white;
   transform: translateX(12px);
+}
+
+.toggle:focus-visible {
+  outline-offset: 3px;
 }
 
 .library {
@@ -476,14 +454,32 @@ input:focus-visible {
 }
 
 .segmented {
+  position: relative;
   display: flex;
   padding: 3px;
   border: 1px solid rgba(255, 255, 255, .06);
   border-radius: 10px;
   background: rgba(255, 255, 255, .045);
+  isolation: isolate;
+}
+
+.segmented-indicator {
+  position: absolute;
+  z-index: 0;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / var(--segment-count));
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+  transform: translateX(calc(var(--segment-index) * 100%));
+  transition: transform .24s cubic-bezier(.2, .8, .2, 1), background .2s ease;
 }
 
 .segmented button {
+  position: relative;
+  z-index: 1;
   flex: 1;
   padding: 5px 9px;
   color: rgba(255, 255, 255, .44);
@@ -494,12 +490,11 @@ input:focus-visible {
   font-size: 9px;
   font-weight: 620;
   cursor: pointer;
+  transition: color .18s ease;
 }
 
 .segmented button.selected {
   color: white;
-  background: rgba(255, 255, 255, .1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
 }
 
 .segmented.small {
@@ -540,8 +535,7 @@ input:focus-visible {
   margin: auto;
 }
 
-.theme-card,
-.add-card {
+.theme-card {
   overflow: hidden;
   min-width: 0;
   padding: 7px;
@@ -553,8 +547,7 @@ input:focus-visible {
   transition: transform .18s ease, border-color .18s ease, background .18s ease;
 }
 
-.studio.self-themed .theme-card,
-.studio.self-themed .add-card {
+.studio.self-themed .theme-card {
   background: var(--studio-card-surface);
   backdrop-filter: blur(var(--studio-card-blur)) saturate(1.04);
 }
@@ -734,8 +727,9 @@ input:focus-visible {
   top: 8px;
   right: 8px;
   padding: 4px;
-  color: #09130e;
-  background: #6be1aa;
+  color: var(--card-on-accent);
+  background: var(--card-accent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--card-accent), transparent 68%);
 }
 
 .card-meta {
@@ -784,40 +778,6 @@ input:focus-visible {
   font-size: 9px;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-.add-card {
-  display: grid;
-  min-height: 190px;
-  place-content: center;
-  place-items: center;
-  gap: 7px;
-  color: rgba(255, 255, 255, .42);
-  border-style: dashed;
-  background: rgba(255, 255, 255, .018);
-}
-
-.add-card:hover {
-  color: rgba(255, 255, 255, .72);
-  border-color: rgba(255, 255, 255, .16);
-  background: rgba(255, 255, 255, .035);
-}
-
-.add-card > span {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, .055);
-}
-
-.add-card strong {
-  font-size: 11px;
-}
-
-.add-card small {
-  font-size: 9px;
 }
 
 .inspector {
@@ -869,6 +829,57 @@ input:focus-visible {
 .icon-button:hover {
   color: white;
   background: rgba(255, 255, 255, .08);
+}
+
+.inspector-actions {
+  position: relative;
+}
+
+.inspector-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  width: max-content;
+  min-width: 154px;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-radius: 10px;
+  background: rgba(33, 35, 43, .96);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .26);
+  backdrop-filter: blur(20px) saturate(1.1);
+}
+
+.inspector-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 9px;
+  color: rgba(255, 255, 255, .78);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.inspector-menu button:hover {
+  color: white;
+  background: rgba(255, 255, 255, .09);
+}
+
+.inspector-menu button.danger {
+  color: #ffaaa4;
+}
+
+.inspector-menu button.danger:hover {
+  color: #ffd2cd;
+  background: rgba(255, 114, 105, .13);
 }
 
 .large-preview {
@@ -1050,7 +1061,8 @@ input:focus-visible {
   min-height: 0;
   flex: 1;
   overflow: auto;
-  padding: 0 2px 18px;
+  padding: 0 12px 18px 2px;
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
 }
 
@@ -1375,43 +1387,69 @@ input:focus-visible {
   border-radius: 5px;
 }
 
-.source-box {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 9px;
-  border: 1px solid rgba(255, 255, 255, .055);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, .027);
-}
-
-.source-icon {
+.theme-info-form {
   display: grid;
-  width: 27px;
-  height: 27px;
-  flex: 0 0 auto;
-  place-items: center;
-  color: rgba(255, 255, 255, .5);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, .06);
+  gap: 9px;
 }
 
-.source-box > div {
+.theme-info-field {
   display: grid;
-  min-width: 0;
-  gap: 2px;
+  gap: 5px;
 }
 
-.source-box strong {
+.theme-info-field > span {
+  color: rgba(255, 255, 255, .48);
   font-size: 9px;
+  font-weight: 520;
 }
 
-.source-box small {
-  overflow: hidden;
-  color: rgba(255, 255, 255, .35);
-  font-size: 8px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+.theme-info-field :is(input, textarea) {
+  width: 100%;
+  color: rgba(255, 255, 255, .82);
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 9px;
+  outline: none;
+  background: rgba(255, 255, 255, .045);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.theme-info-field input {
+  height: 30px;
+  padding: 0 9px;
+}
+
+.theme-info-field textarea {
+  min-height: 58px;
+  padding: 7px 9px;
+  resize: vertical;
+}
+
+.theme-info-field :is(input, textarea):focus {
+  border-color: color-mix(in srgb, var(--studio-accent), white 10%);
+  background: rgba(255, 255, 255, .065);
+}
+
+.theme-info-save.primary {
+  width: 100%;
+  min-height: 31px;
+  margin-top: 1px;
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--studio-accent), white 28%),
+    color-mix(in srgb, var(--studio-accent), white 8%)
+  );
+  box-shadow: none;
+  font-size: 10px;
+}
+
+.theme-info-save.primary:hover {
+  filter: brightness(1.04);
+}
+
+.theme-info-save.primary:disabled {
+  filter: saturate(.72);
+  opacity: .78;
 }
 
 .action-dock {
@@ -1476,35 +1514,6 @@ input:focus-visible {
 .icon-only {
   width: 38px;
   padding: 0;
-}
-
-.dock-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  color: rgba(255, 255, 255, .35);
-}
-
-.dock-meta span:not(.runtime-dot) {
-  overflow: hidden;
-  flex: 1;
-  font-size: 8px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.dock-meta button {
-  display: grid;
-  padding: 3px;
-  color: rgba(255, 255, 255, .34);
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.dock-meta button:hover {
-  color: #ff837b;
 }
 
 .empty-inspector {
@@ -1753,20 +1762,18 @@ input:focus-visible {
 }
 
 .studio.self-themed button,
-.studio.self-themed input {
+.studio.self-themed input,
+.studio.self-themed textarea {
   color: var(--studio-ui-text);
 }
 
 .studio.self-themed .brand span,
 .studio.self-themed .target-copy > span,
 .studio.self-themed .target-copy small,
-.studio.self-themed .safety-note span,
 .studio.self-themed .self-skin-row small,
 .studio.self-themed .library-header p:last-child,
 .studio.self-themed .theme-card > p,
 .studio.self-themed .card-meta span:not(.accent-swatch),
-.studio.self-themed .add-card,
-.studio.self-themed .source-box small,
 .studio.self-themed .motion-toggle-row small,
 .studio.self-themed .transparency-copy,
 .studio.self-themed .range-control small,
@@ -1788,8 +1795,7 @@ input:focus-visible {
 .studio.self-themed .control-section h3,
 .studio.self-themed .range-control b,
 .studio.self-themed .color-control,
-.studio.self-themed .source-icon,
-.studio.self-themed .add-card > span,
+.studio.self-themed .theme-info-field > span,
 .studio.self-themed .restore-follow {
   color: var(--studio-ui-faint);
 }
@@ -1818,6 +1824,11 @@ input:focus-visible {
 .studio.self-themed .apply-state,
 .studio.self-themed .icon-button {
   border-color: var(--studio-ui-line);
+}
+
+.studio.self-themed .inspector-menu {
+  border-color: var(--studio-ui-line);
+  background: var(--studio-panel-surface);
 }
 
 .studio.self-themed .nav-item.active,

@@ -37,6 +37,10 @@ protocol.registerSchemesAsPrivileged([
 let mainWindow: BrowserWindow | null = null;
 let repository: ThemeRepository;
 let codexAdapter: CodexAdapter;
+
+// Keep development and packaged builds on the same user-data identity.
+// This lets a user move from the development build to the DMG without losing themes.
+app.setName("Skin Studio");
 const singleInstanceLockAcquired = app.requestSingleInstanceLock();
 
 if (!singleInstanceLockAcquired) {
@@ -52,6 +56,25 @@ if (!singleInstanceLockAcquired) {
 
 function dataDirectory(): string {
   return process.env.SKIN_STUDIO_DATA_DIR || path.join(app.getPath("userData"), "data");
+}
+
+async function migrateLegacyDevelopmentData(): Promise<void> {
+  if (process.env.SKIN_STUDIO_DATA_DIR) return;
+  const destination = dataDirectory();
+  const legacy = path.join(path.dirname(app.getPath("userData")), "Electron", "data");
+  try {
+    await fs.access(destination);
+    return;
+  } catch {
+    // A fresh packaged installation can migrate from the prior Electron development shell.
+  }
+  try {
+    await fs.access(legacy);
+    await fs.mkdir(path.dirname(destination), { recursive: true });
+    await fs.cp(legacy, destination, { recursive: true, force: false, errorOnExist: true });
+  } catch {
+    // No legacy data is the normal case for a new installation.
+  }
 }
 
 async function dashboard(): Promise<DashboardData> {
@@ -80,6 +103,7 @@ function createWindow(): void {
     backgroundColor: "#101116",
     vibrancy: "under-window",
     visualEffectState: "active",
+    icon: path.join(app.getAppPath(), "assets", "brand", "skin-studio-icon.png"),
     show: false,
     webPreferences: {
       preload: path.join(__dirname, "..", "preload", "index.js"),
@@ -266,6 +290,7 @@ async function resumeRuntime(): Promise<void> {
 
 if (singleInstanceLockAcquired) {
   void app.whenReady().then(async () => {
+    await migrateLegacyDevelopmentData();
     repository = new ThemeRepository(
       dataDirectory(),
       resolveBundledThemesDirectory(app.getAppPath(), app.isPackaged),

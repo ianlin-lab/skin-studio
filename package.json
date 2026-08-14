@@ -1,6 +1,6 @@
 {
   "name": "skin-studio",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "A local, reversible theme studio for the Codex desktop app on macOS.",
   "main": "dist-electron/src/main/index.js",
@@ -31,10 +31,12 @@
       "dist/**/*",
       "dist-electron/**/*",
       "bundled-themes/**/*",
+      "assets/brand/**/*",
       "package.json"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
+      "icon": "assets/brand/skin-studio-icon.icns",
       "target": [
         {
           "target": "dmg",

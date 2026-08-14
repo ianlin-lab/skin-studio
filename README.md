@@ -9,7 +9,7 @@ Skin Studio 是一个只在本机运行的 macOS Codex 换肤工具。第一版�
 ## 当前可用能力
 
 - 自动检测 Codex 安装目录、bundle id、版本、Apple Silicon 架构、运行进程和 Skin Studio 主题状态。
-- 2 套内置主题：Aurora Glass（深色玻璃基准）与文艺复兴工坊（古典暗室、铜金强调、静止背景与轻量人物呼吸动效）。旧的三套近似主题不再展示。
+- 2 套内置主题：Aurora Glass（深色玻璃基准）与 Claude Warm（暖米白、陶土橙和纸张质感）。文艺复兴工坊保留为可编辑的个人主题。
 - 文艺复兴工坊同时保留为独立主题文件夹：`bundled-themes/medieval-scriptorium`，可从 Skin Studio 的“导入素材”选择该文件夹重新导入一份可编辑副本。
 - 导入 PNG、JPEG、GIF、动态/静态 WebP 与 SVG；动态素材会保留原文件并自动生成本机静态回退图，默认开启动效。
 - 导入 Skin Studio v1 文件夹/ZIP。
@@ -77,6 +77,10 @@ npm run recover
 ```
 
 恢复脚本只处理状态文件中记录、且可再次核对可执行文件路径的 Skin Studio 管理进程；PID 已被复用时会拒绝操作，也不会使用 `SIGKILL`。
+
+## 安装与更新
+
+日常使用请从 GitHub Releases 下载 Apple Silicon DMG，拖入“应用程序”后直接使用；不需要启动源码开发环境。首次从开发版切换到正式应用时，会自动迁移现有主题和运行状态。发布者将源码提交到本仓库，并把每个版本的 DMG 附在对应 Release；用户手动下载新 DMG 覆盖旧版本即可更新。详见 [发布与更新](docs/RELEASE.md)。
 
 ## 社区主题兼容
 

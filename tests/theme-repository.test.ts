@@ -33,10 +33,13 @@ describe("ThemeRepository", () => {
     const repository = new ThemeRepository(root);
     await repository.initialize();
     const themes = await repository.list();
-    expect(themes).toHaveLength(1);
-    expect(themes[0]).toMatchObject({ id: "claude-warm", name: "Claude Warm", builtin: true });
+    expect(themes).toHaveLength(2);
+    expect(themes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "claude-warm", name: "Claude Warm", builtin: true }),
+      expect.objectContaining({ id: "aurora-glass", name: "Aurora Glass", builtin: true }),
+    ]));
 
-    const updated = await repository.update(themes[0].id, {
+    const updated = await repository.update("claude-warm", {
       presentation: { panelOpacity: 8, positionX: -20, accent: "#ABCDEF" },
     });
     expect(updated.presentation.panelOpacity).toBe(1);
@@ -122,6 +125,32 @@ describe("ThemeRepository", () => {
     expect(imported.stillAssetUrl).toContain("variant=still");
     await expect(fs.access(path.join(root, "data", "themes", imported.id, "background-still.png")))
       .resolves.toBeUndefined();
+  });
+
+  it("persists a personal theme name and description without changing its applied visual revision", async () => {
+    const root = await tempDirectory("metadata");
+    const repository = new ThemeRepository(path.join(root, "data"));
+    await repository.initialize();
+    const image = path.join(root, "sample.png");
+    await fs.writeFile(image, tinyPng);
+    const created = await repository.createFromImage(image);
+
+    const updated = await repository.update(created.id, {
+      name: "我的深夜工作台",
+      description: "深色背景与暖金色强调，适合专注阅读。",
+    });
+    expect(updated).toMatchObject({
+      name: "我的深夜工作台",
+      description: "深色背景与暖金色强调，适合专注阅读。",
+      updatedAt: created.updatedAt,
+    });
+
+    const restarted = new ThemeRepository(path.join(root, "data"));
+    await restarted.initialize();
+    await expect(restarted.get(created.id)).resolves.toMatchObject({
+      name: "我的深夜工作台",
+      description: "深色背景与暖金色强调，适合专注阅读。",
+    });
   });
 
   it("imports a Dream Skin v1 directory with validated Safe CSS and full colors", async () => {
