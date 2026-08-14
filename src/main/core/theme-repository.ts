@@ -13,7 +13,7 @@ import type {
   ThemeSource,
   ThemeSummary,
 } from "../../shared/types";
-import { BUILTIN_THEMES } from "./builtin-themes";
+import { ACTIVE_BUILTIN_IDS, BUILTIN_THEMES } from "./builtin-themes";
 import { validateSafeCss } from "./safe-css";
 import {
   DEFAULT_PRESENTATION,
@@ -59,9 +59,11 @@ export class ThemeRepository {
 
   async initialize(): Promise<void> {
     await fs.mkdir(this.themesDir, { recursive: true });
-    const hasExistingClaudeWarm = await this.promoteExistingClaudeWarm();
+    const existingBuiltinIds = new Set(await Promise.all(
+      BUILTIN_THEMES.map(({ manifest }) => this.promoteExistingBuiltinTheme(manifest.id, manifest.name)),
+    ).then((items) => BUILTIN_THEMES.filter((_, index) => items[index]).map(({ manifest }) => manifest.id)));
     await Promise.all(BUILTIN_THEMES
-      .filter(({ manifest }) => manifest.id !== "claude-warm" || !hasExistingClaudeWarm)
+      .filter(({ manifest }) => !existingBuiltinIds.has(manifest.id))
       .map(async ({ manifest, svg, bundledAsset, bundledMotionAsset }) => {
       const themeDir = path.join(this.themesDir, manifest.id);
       await fs.mkdir(themeDir, { recursive: true });
@@ -107,7 +109,6 @@ export class ThemeRepository {
     await this.ensureDynamicThemeFallbacks();
     await this.upgradeLegacyGenericImagePresentation();
     await this.removeLegacyImageFirstBlur();
-    await this.demotePersonalizedStarterThemes();
   }
 
   async list(): Promise<ThemeSummary[]> {
@@ -125,7 +126,7 @@ export class ThemeRepository {
       // Older releases left several unused built-in starter packs in user data.
       // Keep them recoverable on disk but do not resurrect them in the library.
       .filter((item) => !item.builtin || (
-        item.name === "Claude Warm"
+        ACTIVE_BUILTIN_IDS.has(item.id)
         && item.author === "Skin Studio"
         && item.source.type === "builtin"
       ));
@@ -172,6 +173,7 @@ export class ThemeRepository {
 
   async update(id: string, patch: ThemePatch): Promise<ThemeSummary> {
     const { manifest } = await this.readTheme(id);
+    const hasPresentationChanges = patch.presentation !== undefined;
     const updated: ThemeManifest = {
       ...manifest,
       name: patch.name === undefined ? manifest.name : safeText(patch.name, manifest.name, 80),
@@ -183,7 +185,9 @@ export class ThemeRepository {
         ...manifest.presentation,
         ...patch.presentation,
       }, manifest.presentation),
-      updatedAt: new Date().toISOString(),
+      // `updatedAt` is also the revision applied to Codex. Metadata-only edits
+      // should update the library without needlessly asking the user to reapply.
+      updatedAt: hasPresentationChanges ? new Date().toISOString() : manifest.updatedAt,
     };
     await writeJsonAtomic(path.join(this.resolveThemeDir(id), "theme.json"), updated);
     return this.readSummary(id);
@@ -712,8 +716,8 @@ export class ThemeRepository {
     }
   }
 
-  /** Keeps an existing user-customized Claude Warm as the sole default without creating a duplicate. */
-  private async promoteExistingClaudeWarm(): Promise<boolean> {
+  /** Promotes a previously shipped starter theme without overwriting its user adjustments. */
+  private async promoteExistingBuiltinTheme(id: string, name: string): Promise<boolean> {
     const entries = await fs.readdir(this.themesDir, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
@@ -722,17 +726,18 @@ export class ThemeRepository {
         const manifest = validateThemeManifest(JSON.parse(
           await fs.readFile(path.join(themeDir, "theme.json"), "utf8"),
         ));
-        const isClaudeWarm = manifest.name === "Claude Warm"
+        const isMatchingBuiltin = manifest.id === id
+          && manifest.name === name
           && manifest.author === "Skin Studio"
           && manifest.asset.file === "background.svg";
-        if (!isClaudeWarm) continue;
+        if (!isMatchingBuiltin) continue;
         if (!manifest.builtin || manifest.source.type !== "builtin") {
           await writeJsonAtomic(path.join(themeDir, "theme.json"), {
             ...manifest,
             builtin: true,
             source: {
               type: "builtin",
-              label: "Skin Studio 内置 · Claude Warm",
+              label: `Skin Studio 内置 · ${name}`,
               adapter: "skin-studio-v1",
             },
           });
@@ -743,31 +748,6 @@ export class ThemeRepository {
       }
     }
     return false;
-  }
-
-  /** The original Aurora and Renaissance examples are now treated as editable personal themes. */
-  private async demotePersonalizedStarterThemes(): Promise<void> {
-    for (const id of ["aurora-glass", "medieval-scriptorium"]) {
-      try {
-        const themeDir = this.resolveThemeDir(id);
-        const manifest = validateThemeManifest(JSON.parse(
-          await fs.readFile(path.join(themeDir, "theme.json"), "utf8"),
-        ));
-        if (!manifest.builtin) continue;
-        await writeJsonAtomic(path.join(themeDir, "theme.json"), {
-          ...manifest,
-          builtin: false,
-          source: {
-            type: "folder",
-            label: `个人主题 · ${manifest.name}`,
-            adapter: "skin-studio-v1",
-            importedAt: manifest.source.importedAt,
-          },
-        });
-      } catch {
-        // A removed personal theme should never block startup.
-      }
-    }
   }
 
   /**

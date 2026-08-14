@@ -245,6 +245,12 @@ html[data-skin-studio-theme] [data-ds-part="header"] {
   backdrop-filter: ${panelBackdrop} !important;
 }
 
+/* Codex keeps some header context controls on a light native surface. They must
+   not inherit the theme's light foreground, or labels such as “打开位置” disappear. */
+html[data-skin-studio-theme] [data-ds-part="header"] button[class~="bg-token-bg-fog"] {
+  color: #22252e !important;
+}
+
 html[data-skin-studio-theme] [role="main"],
 html[data-skin-studio-theme] [data-ds-part="home"] {
   color: var(--skin-text) !important;

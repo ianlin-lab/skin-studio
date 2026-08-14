@@ -48,6 +48,10 @@ describe("injected theme payload", () => {
       expect(payload.expression).toContain(
         '[role=\\"switch\\"] > [data-state] > [data-state]',
       );
+      expect(payload.expression).toContain(
+        '[data-ds-part=\\"header\\"] button[class~=\\"bg-token-bg-fog\\"]',
+      );
+      expect(payload.expression).toContain("color: #22252e !important");
       expect(payload.revision).toHaveLength(18);
       const verification = verifyExpression(theme.id, payload.revision);
       expect(verification).toContain(payload.revision);

@@ -1,5 +1,4 @@
 import {
-  Archive,
   Check,
   ChevronRight,
   CircleAlert,
@@ -55,6 +54,7 @@ import {
   displayedBackgroundUrl,
   resolveTextToneColors,
 } from "./studio-theme";
+import brandIconUrl from "../../assets/brand/skin-studio-icon.png";
 
 type Toast = { tone: "success" | "error" | "info"; message: string } | null;
 type ImportMode = "local" | "github" | null;
@@ -77,6 +77,11 @@ const REGION_TRANSPARENCY_KEYS: readonly BackgroundVisibilityOverride[] = [
   "composerOpacity",
   "popupOpacity",
 ];
+const SOURCE_FILTER_OPTIONS = [
+  ["all", "全部"],
+  ["builtin", "内置"],
+  ["personal", "我的主题"],
+] as const;
 
 function customOverrideCount(
   presentation: ThemePresentation,
@@ -118,6 +123,15 @@ function inheritedPopupOpacity(panelOpacity: number): number {
   return Math.min(0.99, panelOpacity + 0.16);
 }
 
+function contrastTextFor(color: string): string {
+  const hex = color.match(/^#([\da-f]{6})$/i)?.[1];
+  if (!hex) return "#ffffff";
+
+  const [red, green, blue] = [0, 2, 4].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16));
+  const luminance = (red * 299 + green * 587 + blue * 114) / 1000;
+  return luminance > 156 ? "#111318" : "#ffffff";
+}
+
 function App() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -126,18 +140,26 @@ function App() {
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast>(null);
   const [importMode, setImportMode] = useState<ImportMode>(null);
+  const [inspectorMenuOpen, setInspectorMenuOpen] = useState(false);
   const [githubUrl, setGithubUrl] = useState("https://github.com/Fei-Away/Codex-Dream-Skin");
   const [viewport, setViewport] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
   const saveTimers = useRef(new Map<string, number>());
   const pendingSaves = useRef(new Map<string, PendingThemeSave>());
   const saveChains = useRef(new Map<string, Promise<void>>());
   const editVersions = useRef(new Map<string, number>());
+  const persistedPresentations = useRef(new Map<string, ThemePresentation>());
+  const inspectorMenuRef = useRef<HTMLDivElement>(null);
+
+  function rememberPersistedPresentations(themes: ThemeSummary[]) {
+    for (const theme of themes) persistedPresentations.current.set(theme.id, theme.presentation);
+  }
 
   useEffect(() => {
     let alive = true;
     window.skinStudio.bootstrap()
       .then((value) => {
         if (!alive) return;
+        rememberPersistedPresentations(value.themes);
         setData(value);
         setSelectedId(value.activeThemeId || value.themes[0]?.id || null);
       })
@@ -176,6 +198,21 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    setInspectorMenuOpen(false);
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!inspectorMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setInspectorMenuOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [inspectorMenuOpen]);
+
   const selected = data?.themes.find((theme) => theme.id === selectedId) ?? null;
   const activeTheme = data?.themes.find((theme) => theme.id === data.activeThemeId) ?? null;
   const hasPendingCodexChanges = Boolean(
@@ -203,6 +240,7 @@ function App() {
 
   async function refreshDashboard(preferredId?: string) {
     const next = await window.skinStudio.bootstrap();
+    rememberPersistedPresentations(next.themes);
     setData(next);
     if (preferredId && next.themes.some((theme) => theme.id === preferredId)) setSelectedId(preferredId);
   }
@@ -210,14 +248,30 @@ function App() {
   function commitPresentationSave(id: string, pending: PendingThemeSave): Promise<void> {
     const previous = saveChains.current.get(id) ?? Promise.resolve();
     const next = previous.catch(() => undefined).then(async () => {
-      const updated = await window.skinStudio.updateTheme(id, {
-        presentation: pending.presentation,
-      });
-      if (editVersions.current.get(id) !== pending.version) return;
-      setData((current) => current ? {
-        ...current,
-        themes: current.themes.map((theme) => theme.id === updated.id ? updated : theme),
-      } : current);
+      try {
+        const updated = await window.skinStudio.updateTheme(id, {
+          presentation: pending.presentation,
+        });
+        persistedPresentations.current.set(id, updated.presentation);
+        if (editVersions.current.get(id) !== pending.version) return;
+        setData((current) => current ? {
+          ...current,
+          themes: current.themes.map((theme) => theme.id === updated.id ? updated : theme),
+        } : current);
+      } catch (error) {
+        if (editVersions.current.get(id) === pending.version) {
+          const persisted = persistedPresentations.current.get(id);
+          if (persisted) {
+            setData((current) => current ? {
+              ...current,
+              themes: current.themes.map((theme) => theme.id === id
+                ? { ...theme, presentation: persisted }
+                : theme),
+            } : current);
+          }
+        }
+        throw error;
+      }
     });
     saveChains.current.set(id, next);
     void next.finally(() => {
@@ -317,6 +371,14 @@ function App() {
       }
       if (result.themes) {
         setData((current) => current ? { ...current, themes: result.themes! } : current);
+        if (selectedId && !result.themes.some((theme) => theme.id === selectedId)) {
+          setSelectedId(
+            result.activeThemeId
+            ?? result.codex?.runtime.activeThemeId
+            ?? result.themes[0]?.id
+            ?? null,
+          );
+        }
       }
       setToast({ tone: result.ok ? "success" : "error", message: result.message });
       return result;
@@ -371,10 +433,40 @@ function App() {
     setData({ ...data, settings });
   }
 
+  async function saveThemeInfo(id: string, name: string, description: string) {
+    const theme = data?.themes.find((item) => item.id === id);
+    const nextName = name.trim();
+    const nextDescription = description.trim();
+    if (!theme) return;
+    if (!nextName) {
+      setToast({ tone: "error", message: "主题名称不能为空" });
+      return;
+    }
+    if (nextName === theme.name && nextDescription === theme.description) return;
+
+    setBusy("theme-info");
+    try {
+      await flushPendingSave();
+      const updated = await window.skinStudio.updateTheme(id, {
+        name: nextName,
+        description: nextDescription,
+      });
+      setData((current) => current ? {
+        ...current,
+        themes: current.themes.map((item) => item.id === updated.id ? updated : item),
+      } : current);
+      setToast({ tone: "success", message: "主题信息已保存" });
+    } catch (error) {
+      setToast({ tone: "error", message: error instanceof Error ? error.message : String(error) });
+    } finally {
+      setBusy(null);
+    }
+  }
+
   if (!data) {
     return (
       <div className="loading-screen">
-        <div className="brand-mark large"><Palette size={26} /></div>
+        <div className="brand-mark large"><img src={brandIconUrl} alt="" /></div>
         <LoaderCircle className="spin" size={22} />
         <span>正在检查 Codex 与本地主题…</span>
       </div>
@@ -385,15 +477,20 @@ function App() {
     <div
       className={`studio ${data.settings.followSelectedTheme ? "self-themed" : ""}`}
       style={studioStyle}
+      onPointerDownCapture={(event) => {
+        if (inspectorMenuOpen && !inspectorMenuRef.current?.contains(event.target as Node)) {
+          setInspectorMenuOpen(false);
+        }
+      }}
     >
       {studioMotionStyle && <div className="studio-motion-layer" style={studioMotionStyle} />}
       <div className="drag-region" />
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark"><Palette size={18} /></div>
+          <div className="brand-mark"><img src={brandIconUrl} alt="" /></div>
           <div>
             <strong>Skin Studio</strong>
-            <span>Local theme lab</span>
+            <span>Codex 主题管理器</span>
           </div>
         </div>
 
@@ -405,27 +502,19 @@ function App() {
             <span>主题库</span>
             <span className="nav-count">{data.themes.length}</span>
           </button>
-          <button className="nav-item" onClick={() => setImportMode("local")}>
+          <button className="nav-item" onClick={() => void chooseImport("image")}>
             <ImagePlus size={17} />
-            <span>导入素材</span>
+            <span>从素材创建</span>
             <ChevronRight size={15} />
           </button>
         </nav>
 
         <div className="sidebar-spacer" />
 
-        <div className="safety-note">
-          <div className="safety-icon"><ShieldCheck size={16} /></div>
-          <div>
-            <strong>可逆注入</strong>
-            <span>不修改 app.asar、项目或对话</span>
-          </div>
-        </div>
-
         <button className="self-skin-row" onClick={toggleSelfSkin}>
           <div>
-            <span>Studio 跟随预览</span>
-            <small>随当前选中主题换肤</small>
+            <span>界面跟随主题</span>
+            <small>让 Skin Studio 同步预览配色</small>
           </div>
           <span className={`toggle ${data.settings.followSelectedTheme ? "on" : ""}`}>
             <i />
@@ -436,23 +525,25 @@ function App() {
       <main className="library">
         <header className="library-header">
           <div>
-            <p className="eyebrow">CODEX · LOCAL</p>
             <h1>选择今天的工作氛围</h1>
             <p>主题只作用于界面表现，随时可以回到原生外观。</p>
           </div>
           <button className="primary compact" onClick={() => setImportMode("local")}>
             <Plus size={17} />
-            导入
+            导入主题
           </button>
         </header>
 
         <div className="library-tools">
-          <div className="segmented small">
-            {([
-              ["all", "全部"],
-              ["builtin", "内置"],
-              ["personal", "我的主题"],
-            ] as const).map(([value, label]) => (
+          <div
+            className="segmented small"
+            style={{
+              "--segment-index": SOURCE_FILTER_OPTIONS.findIndex(([value]) => value === sourceFilter),
+              "--segment-count": SOURCE_FILTER_OPTIONS.length,
+            } as CSSProperties}
+          >
+            <span className="segmented-indicator" aria-hidden="true" />
+            {SOURCE_FILTER_OPTIONS.map(([value, label]) => (
               <button
                 key={value}
                 className={sourceFilter === value ? "selected" : ""}
@@ -482,11 +573,6 @@ function App() {
               onSelect={() => setSelectedId(theme.id)}
             />
           ))}
-          <button className="add-card" onClick={() => setImportMode("local")}>
-            <span><Plus size={21} /></span>
-            <strong>创建新主题</strong>
-            <small>图片、GIF 或动态 WebP</small>
-          </button>
         </section>
       </main>
 
@@ -495,21 +581,58 @@ function App() {
           <>
             <div className="inspector-head">
               <div>
-                <p className="eyebrow">LIVE PREVIEW</p>
                 <h2>{selected.name}</h2>
               </div>
-              <button
-                className="icon-button"
-                title="在 Finder 中显示"
-                onClick={() => window.skinStudio.revealTheme(selected.id)}
-              >
-                <MoreHorizontal size={18} />
-              </button>
+              <div className="inspector-actions" ref={inspectorMenuRef}>
+                <button
+                  className="icon-button"
+                  title="更多操作"
+                  aria-label="更多操作"
+                  aria-expanded={inspectorMenuOpen}
+                  onClick={() => setInspectorMenuOpen((open) => !open)}
+                >
+                  <MoreHorizontal size={18} />
+                </button>
+                {inspectorMenuOpen && (
+                  <div className="inspector-menu" role="menu">
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setInspectorMenuOpen(false);
+                        void window.skinStudio.revealTheme(selected.id);
+                      }}
+                    >
+                      <FolderOpen size={15} />
+                      在 Finder 中显示
+                    </button>
+                    {!selected.builtin && (
+                      <button
+                        className="danger"
+                        role="menuitem"
+                        onClick={() => {
+                          setInspectorMenuOpen(false);
+                          void runOperation("delete", () => window.skinStudio.deleteTheme(selected.id));
+                        }}
+                      >
+                        <Trash2 size={15} />
+                        删除主题
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <ThemePreview theme={selected} />
 
             <div className="inspector-scroll">
+              {!selected.builtin && (
+                <ThemeInfoEditor
+                  theme={selected}
+                  busy={busy === "theme-info"}
+                  onSave={saveThemeInfo}
+                />
+              )}
               <ControlSection title="画面构图" icon={<FileImage size={15} />}>
                 {selected.asset.animated && (selected.asset.still || selected.asset.motion) && (
                   <div className="motion-toggle-row">
@@ -522,11 +645,11 @@ function App() {
                       role="switch"
                       aria-checked={selected.presentation.motionEnabled !== false}
                       title={selected.presentation.motionEnabled !== false ? "关闭背景动效" : "开启背景动效"}
-                      onClick={() => updatePresentation({
-                        motionEnabled: selected.presentation.motionEnabled === false,
-                      })}
-                    >
-                      <span />
+                    onClick={() => updatePresentation({
+                      motionEnabled: selected.presentation.motionEnabled === false,
+                    })}
+                  >
+                      <i />
                     </button>
                   </div>
                 )}
@@ -787,17 +910,6 @@ function App() {
                 />
               </ControlSection>
 
-              <div className="source-box">
-                <span className="source-icon">
-                  {selected.source.type === "github" ? <GitBranch size={15} /> : <Archive size={15} />}
-                </span>
-                <div>
-                  <strong>{selected.builtin ? "Skin Studio 内置" : "个人主题"}</strong>
-                  <small>{selected.source.adapter === "dream-skin-v1"
-                    ? selected.safeCss ? "Dream Skin v1 · Safe CSS" : "Dream Skin v1 · Legacy"
-                    : selected.source.label}</small>
-                </div>
-              </div>
             </div>
 
             <div className="action-dock">
@@ -839,18 +951,6 @@ function App() {
                   {busy === "restore" ? <LoaderCircle className="spin" size={17} /> : <RotateCcw size={17} />}
                 </button>
               </div>
-              <div className="dock-meta">
-                <RuntimeDot state={data.codex.runtime.state} />
-                <span>{data.codex.runtime.message}</span>
-                {!selected.builtin && (
-                  <button
-                    title="删除主题"
-                    onClick={() => runOperation("delete", () => window.skinStudio.deleteTheme(selected.id))}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-              </div>
             </div>
           </>
         ) : (
@@ -887,19 +987,21 @@ function TargetStatus({ codex }: { codex: CodexStatus }) {
       : codex.running
         ? "running"
         : "idle";
+  const connectionCopy = !codex.installation.installed
+    ? "未检测到安装"
+    : codex.runtime.state === "active"
+      ? "已应用主题"
+      : codex.running
+        ? "运行中 · 原生外观"
+        : "未启动";
+  const version = codex.installation.version ? ` · ${codex.installation.version}` : "";
   return (
     <div className={`target-card ${state}`}>
       <div className="target-icon"><Monitor size={18} /></div>
       <div className="target-copy">
-        <span>目标应用</span>
+        <span>当前适配应用</span>
         <strong>Codex</strong>
-        <small>
-          {!codex.installation.installed
-            ? "未检测到安装"
-            : `v${codex.installation.version ?? "未知"} · ${
-              codex.runtime.state === "active" ? "已注入" : codex.running ? "运行中" : "未运行"
-            }`}
-        </small>
+        <small>{connectionCopy}{version}</small>
       </div>
       <RuntimeDot state={codex.runtime.state} />
     </div>
@@ -930,6 +1032,7 @@ function ThemeCard({
     "--card-overlay": theme.presentation.overlayOpacity,
     "--card-panel": theme.presentation.panelOpacity,
     "--card-accent": theme.presentation.accent,
+    "--card-on-accent": contrastTextFor(theme.presentation.accent),
     "--card-bg": theme.presentation.colors.background,
     "--card-panel-color": theme.presentation.colors.panel,
     "--card-text": theme.presentation.colors.text,
@@ -1030,6 +1133,62 @@ function ControlSection({
   );
 }
 
+function ThemeInfoEditor({
+  theme,
+  busy,
+  onSave,
+}: {
+  theme: ThemeSummary;
+  busy: boolean;
+  onSave: (id: string, name: string, description: string) => Promise<void>;
+}) {
+  const [name, setName] = useState(theme.name);
+  const [description, setDescription] = useState(theme.description);
+
+  useEffect(() => {
+    setName(theme.name);
+    setDescription(theme.description);
+  }, [theme.id, theme.name, theme.description]);
+
+  const dirty = name.trim() !== theme.name || description.trim() !== theme.description;
+
+  return (
+    <ControlSection title="主题信息" icon={<Settings2 size={15} />}>
+      <form
+        className="theme-info-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onSave(theme.id, name, description);
+        }}
+      >
+        <label className="theme-info-field">
+          <span>主题名称</span>
+          <input
+            value={name}
+            maxLength={80}
+            onChange={(event) => setName(event.target.value)}
+            aria-label="主题名称"
+          />
+        </label>
+        <label className="theme-info-field">
+          <span>主题介绍</span>
+          <textarea
+            value={description}
+            maxLength={180}
+            rows={3}
+            onChange={(event) => setDescription(event.target.value)}
+            aria-label="主题介绍"
+          />
+        </label>
+        <button className="primary theme-info-save" type="submit" disabled={!dirty || busy}>
+          {busy ? <LoaderCircle className="spin" size={14} /> : null}
+          保存信息
+        </button>
+      </form>
+    </ControlSection>
+  );
+}
+
 function DisclosureGroup({
   title,
   status,
@@ -1083,8 +1242,16 @@ function SegmentedControl({
   options: Array<[string, string]>;
   onChange: (value: string) => void;
 }) {
+  const selectedIndex = Math.max(0, options.findIndex(([option]) => option === value));
   return (
-    <div className="segmented control">
+    <div
+      className="segmented control"
+      style={{
+        "--segment-index": selectedIndex,
+        "--segment-count": options.length,
+      } as CSSProperties}
+    >
+      <span className="segmented-indicator" aria-hidden="true" />
       {options.map(([option, label]) => (
         <button
           key={option}
