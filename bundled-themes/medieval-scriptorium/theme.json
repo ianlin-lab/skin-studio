@@ -6,7 +6,23 @@
   "description": "文艺复兴暗室、暖象牙正文与铜金强调；背景保持静止，人物以轻量呼吸浮动为主。",
   "author": "Skin Studio",
   "builtin": false,
-  "asset": { "file": "background.svg", "mime": "image/svg+xml", "animated": true },
+  "asset": {
+    "file": "background.png",
+    "mime": "image/png",
+    "animated": true,
+    "motion": {
+      "file": "person-motion.png",
+      "mime": "image/png",
+      "canvasWidth": 1586,
+      "canvasHeight": 992,
+      "cropX": 430,
+      "cropY": 160,
+      "cropWidth": 1156,
+      "cropHeight": 832,
+      "originX": 875,
+      "originY": 905
+    }
+  },
   "presentation": {
     "appearance": "dark",
     "fit": "cover",
@@ -15,11 +31,14 @@
     "scale": 1,
     "brightness": 1,
     "overlayOpacity": 0,
-    "panelOpacity": 0.2,
+    "panelOpacity": 0.5,
+    "composerOpacity": 0.72,
+    "popupOpacity": 0.82,
+    "motionEnabled": true,
     "panelBlur": 0,
     "radius": 12,
     "accent": "#d6a151",
-    "textTone": "light",
+    "textTone": "auto",
     "taskIntensity": 1,
     "colors": {
       "background": "#1e120f",
@@ -29,8 +48,8 @@
       "accentAlt": "#efc578",
       "secondary": "#8fa36c",
       "highlight": "#c46d56",
-      "text": "#f8edd5",
-      "muted": "#c8b99a",
+      "text": "#fff4dc",
+      "muted": "#d5c3a3",
       "line": "#8f6a3f"
     }
   },

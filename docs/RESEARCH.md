@@ -41,6 +41,12 @@ Skin Studio 的 `TargetAdapter` 接口来自这一类解耦思路，第一版只
 - CDP 还暴露 `avatar-overlay` page 和定价 webview；适配器会排除 overlay/helper 与非 `page` target。
 - 本机版本已将主画布换成 `main[data-app-shell-main-surface]`。Skin Studio 同时兼容新旧锚点，并优先覆写 Codex 自身公开的 `--color-token-*` / `--vscode-*` 语义变量，使按钮、文字、菜单和面板形成完整配色。
 
+## 2026-10 适配检查
+
+- 本机 ChatGPT/Codex 桌面版为 `26.911.61220`。检查了其已安装资源包，主画布仍保留 `main[data-app-shell-main-surface]`，底部线程输入区新增 `[data-thread-scroll-footer]` 和 `from-surface / via-surface` 背景渐变。
+- 新界面正文和表面大量使用 `--color-text-*` 与 `--color-surface-*`。只覆写旧的 `--color-token-*` 会让部分正文沿用官方浅色界面的深字，或让底部渐变沿用官方浅底；在深色图片主题上会形成文字和背景对比失配。
+- 注入适配器现在同时映射新旧语义变量，并移除新版输入区后方多余的底部渐变。保留旧锚点和原有恢复机制。此项已通过源码测试和构建，仍需在用户实际窗口中进行视觉验收。
+
 ## 结论
 
 运行时 CDP 注入是当前最适合本项目的方案：

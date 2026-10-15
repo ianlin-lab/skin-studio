@@ -32,11 +32,19 @@ describe("injected theme payload", () => {
     try {
       const payload = await buildInjectionPayload(theme, asset);
       expect(payload.expression).toContain("skin-studio-theme-style");
-      expect(payload.expression).toContain("skin-studio-codex-v2");
+      expect(payload.expression).toContain("skin-studio-codex-v5");
       expect(payload.expression).toContain("data:image/svg+xml;base64");
       expect(payload.expression).toContain("data-ds-part");
       expect(payload.expression).toContain("composer-surface-chrome");
+      expect(payload.expression).toContain("[data-composer-surface-variant]");
+      expect(payload.expression).toContain("--composer-layout-surface-background:");
+      expect(payload.expression).toContain("aside[data-testid=\\\"app-shell-floating-left-panel\\\"]");
       expect(payload.expression).toContain("--ds-theme-color-accent");
+      expect(payload.expression).toContain(`--color-text-prose: ${DEFAULT_PRESENTATION.colors.text}`);
+      expect(payload.expression).toContain("html[data-skin-studio-theme] [data-theme] {");
+      expect(payload.expression).toContain("--color-text-prose: var(--skin-text)");
+      expect(payload.expression).toContain("--color-surface: rgba(13, 15, 20,");
+      expect(payload.expression).toContain("[aria-hidden=\\\"true\\\"].bg-gradient-to-t.from-surface");
       expect(payload.expression).toContain("native controls out of the web theme's color-scheme");
       expect(payload.expression).toContain("#root,\\nhtml[data-skin-studio-theme] [data-reactroot]");
       expect(payload.expression).toContain(
@@ -64,7 +72,7 @@ describe("injected theme payload", () => {
         isConnected: true,
         dataset: {
           revision: payload.revision,
-          contract: "skin-studio-codex-v2",
+          contract: "skin-studio-codex-v5",
         },
       };
       const documentMock = {
@@ -104,6 +112,7 @@ describe("injected theme payload", () => {
         updatedAt: new Date().toISOString(),
       }, asset);
       expect(payload.expression).toContain("rgba(34, 37, 46, 0.720)");
+      expect(payload.expression).toContain("--composer-layout-surface-background: rgba(34, 37, 46, 0.720)");
       expect(payload.expression).toContain("rgba(24, 26, 33, 0.820)");
     } finally {
       await fs.rm(root, { recursive: true, force: true });

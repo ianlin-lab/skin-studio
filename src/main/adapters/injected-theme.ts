@@ -8,7 +8,7 @@ export interface InjectionPayload {
   revision: string;
 }
 
-const INJECTION_CONTRACT = "skin-studio-codex-v2";
+const INJECTION_CONTRACT = "skin-studio-codex-v5";
 
 function hexToRgb(color: string): [number, number, number] {
   const value = Number.parseInt(color.slice(1), 16);
@@ -161,6 +161,20 @@ html[data-skin-studio-theme] {
   --color-token-input-foreground: ${c.text};
   --color-token-input-placeholder-foreground: ${c.muted};
   --color-token-input-background: ${rgba(c.panelAlt, composerAlpha)};
+  /* Current Codex surfaces and prose use these semantic tokens instead of the
+     older color-token-* names. Keep both generations mapped to one palette. */
+  --color-surface: ${rgba(c.background, mainSurfaceAlpha)};
+  --color-surface-secondary: ${rgba(c.panel, Math.min(0.94, p.panelOpacity + 0.04))};
+  --color-surface-tertiary: ${rgba(c.panelAlt, composerAlpha)};
+  --color-surface-elevated: ${rgba(c.panel, popupAlpha)};
+  --color-surface-elevated-secondary: ${rgba(c.panelAlt, composerAlpha)};
+  --color-surface-canvas: ${rgba(c.background, mainSurfaceAlpha)};
+  --color-text: ${c.text};
+  --color-text-emphasis: ${c.text};
+  --color-text-primary: ${c.text};
+  --color-text-prose: ${c.text};
+  --color-text-secondary: ${c.muted};
+  --color-text-tertiary: ${c.muted};
   --color-token-side-bar-background: ${rgba(c.panel, Math.min(0.98, p.panelOpacity + 0.08))};
   --color-token-sidebar-surface-primary: ${rgba(c.panel, Math.min(0.98, p.panelOpacity + 0.08))};
   --color-token-button-background: ${c.accent};
@@ -193,6 +207,24 @@ html[data-skin-studio-theme] {
   --vscode-textLink-foreground: ${c.accent};
   --vscode-focusBorder: ${c.accent};
   background-color: var(--skin-bg) !important;
+}
+
+/* Codex now declares semantic colors on nested [data-theme] scopes. Variables
+   on those elements override inherited values from html, even when the html
+   selector is more specific. Keep the chosen palette inside each scope. */
+html[data-skin-studio-theme] [data-theme] {
+  --color-text: var(--skin-text);
+  --color-text-emphasis: var(--skin-text);
+  --color-text-primary: var(--skin-text);
+  --color-text-prose: var(--skin-text);
+  --color-text-secondary: var(--skin-muted);
+  --color-text-tertiary: var(--skin-muted);
+  --color-surface: ${rgba(c.background, mainSurfaceAlpha)};
+  --color-surface-secondary: ${rgba(c.panel, Math.min(0.94, p.panelOpacity + 0.04))};
+  --color-surface-tertiary: ${rgba(c.panelAlt, composerAlpha)};
+  --color-surface-elevated: ${rgba(c.panel, popupAlpha)};
+  --color-surface-elevated-secondary: ${rgba(c.panelAlt, composerAlpha)};
+  --color-surface-canvas: ${rgba(c.background, mainSurfaceAlpha)};
 }
 
 html[data-skin-studio-theme] body {
@@ -228,11 +260,38 @@ html[data-skin-studio-theme] main.bg-token-main-surface-primary {
   border-color: var(--skin-line) !important;
 }
 
+/* The newer thread footer paints a full-height surface gradient behind the
+   composer. The themed composer already supplies its own readable surface. */
+html[data-skin-studio-theme] [aria-hidden="true"].bg-gradient-to-t.from-surface {
+  background-image: none !important;
+}
+
 html[data-skin-studio-theme] aside.app-shell-left-panel {
   color: var(--skin-text) !important;
   background: ${rgba(c.panel, p.panelOpacity)} !important;
   border-color: var(--skin-line) !important;
   backdrop-filter: ${panelBackdrop} !important;
+}
+
+/* New sidebar text utilities can resolve against Codex's light palette even
+   when the sidebar itself has a dark themed surface. Keep labels explicit. */
+html[data-skin-studio-theme] :is(aside.app-shell-left-panel, aside[data-testid="app-shell-floating-left-panel"]) {
+  --color-text: var(--skin-text);
+  --color-text-emphasis: var(--skin-text);
+  --color-text-primary: var(--skin-text);
+  --color-text-secondary: var(--skin-muted);
+  --color-text-tertiary: var(--skin-muted);
+  --color-token-foreground: var(--skin-text);
+  --color-token-text-primary: var(--skin-text);
+  --color-token-text-secondary: var(--skin-muted);
+}
+
+html[data-skin-studio-theme] :is(aside.app-shell-left-panel, aside[data-testid="app-shell-floating-left-panel"]) :is(button, a, [role="button"], [role="treeitem"], span, p, label, [class*="text-"]) {
+  color: var(--skin-text) !important;
+}
+
+html[data-skin-studio-theme] :is(aside.app-shell-left-panel, aside[data-testid="app-shell-floating-left-panel"]) :is(.text-secondary, .text-tertiary, [class*="text-muted"], [class*="text-tertiary"]) {
+  color: var(--skin-muted) !important;
 }
 
 html[data-skin-studio-theme] header.app-header-tint,
@@ -273,6 +332,29 @@ html[data-skin-studio-theme] [data-ds-part="composer"] {
   border-radius: var(--skin-radius) !important;
   backdrop-filter: ${panelBackdrop} !important;
   box-shadow: 0 16px 46px ${rgba(c.background, 0.25)} !important;
+}
+
+/* Current Codex uses a composer layout surface instead of the older chrome
+   class. Its own --composer-layout-surface-background otherwise stays pale. */
+html[data-skin-studio-theme] [data-composer-surface-variant]:not([data-composer-surface-variant="inline"]) {
+  --composer-layout-surface-background: ${rgba(c.panelAlt, composerAlpha)} !important;
+  --color-background-primary-soft: ${rgba(c.panelAlt, composerAlpha)};
+  --color-text: var(--skin-text);
+  --color-text-emphasis: var(--skin-text);
+  --color-text-primary: var(--skin-text);
+  --color-text-secondary: var(--skin-muted);
+  --color-text-tertiary: var(--skin-muted);
+  color: var(--skin-text) !important;
+  caret-color: var(--skin-accent) !important;
+}
+
+html[data-skin-studio-theme] [data-composer-surface-variant]:not([data-composer-surface-variant="inline"]) :is([contenteditable="true"], textarea, input, .text-default) {
+  color: var(--skin-text) !important;
+  caret-color: var(--skin-accent) !important;
+}
+
+html[data-skin-studio-theme] [data-composer-surface-variant]:not([data-composer-surface-variant="inline"]) :is(.text-secondary, .text-tertiary, [class*="placeholder"]) {
+  color: var(--skin-muted) !important;
 }
 
 html[data-skin-studio-theme] .composer-surface-chrome :is(input, textarea, [contenteditable="true"]),
@@ -346,7 +428,24 @@ html[data-skin-studio-theme] [data-skin-studio-light-surface] {
   --vscode-foreground: #332820;
   --vscode-editor-foreground: #332820;
   --vscode-input-foreground: #332820;
+  --color-text: #332820;
+  --color-text-emphasis: #332820;
+  --color-text-primary: #332820;
+  --color-text-prose: #332820;
+  --color-text-secondary: #6d5a4a;
+  --color-text-tertiary: #6d5a4a;
   color: #332820 !important;
+}
+
+html[data-skin-studio-theme] [data-skin-studio-light-surface] [data-theme] {
+  --skin-text: #332820;
+  --skin-muted: #6d5a4a;
+  --color-text: #332820;
+  --color-text-emphasis: #332820;
+  --color-text-primary: #332820;
+  --color-text-prose: #332820;
+  --color-text-secondary: #6d5a4a;
+  --color-text-tertiary: #6d5a4a;
 }
 
 html[data-skin-studio-theme] [data-skin-studio-light-surface] :is(
@@ -373,7 +472,7 @@ html[data-skin-studio-theme] [data-skin-studio-light-surface] :is(
 }
 
 html[data-skin-studio-theme] aside.app-shell-left-panel :is(button, a) {
-  color: var(--skin-muted) !important;
+  color: var(--skin-text) !important;
   border-color: transparent !important;
 }
 
@@ -518,7 +617,7 @@ ${theme.safeCss?.css ?? ""}
       mark(".group\\\\/project-selector", "project-list");
       mark(".thread-scroll-container", "thread");
       mark("[data-message-author-role]", "message");
-      mark(".composer-surface-chrome", "composer");
+      mark('.composer-surface-chrome, [data-composer-surface-variant]:not([data-composer-surface-variant="inline"])', "composer");
       mark('.composer-surface-chrome [class*="_footer_"]', "composer-toolbar");
       mark('[role="dialog"], [role="menu"], [data-radix-popper-content-wrapper] > *', "dialog");
       const isOpaqueLightSurface = (node) => {
@@ -657,7 +756,7 @@ ${theme.safeCss?.css ?? ""}
       markers: {
         main: Boolean(main),
         sidebar: Boolean(sidebar),
-        composer: Boolean(document.querySelector(".composer-surface-chrome"))
+        composer: Boolean(document.querySelector('.composer-surface-chrome, [data-composer-surface-variant]:not([data-composer-surface-variant="inline"])'))
       }
     };
   })()`;

@@ -41,6 +41,11 @@ let codexAdapter: CodexAdapter;
 // Keep development and packaged builds on the same user-data identity.
 // This lets a user move from the development build to the DMG without losing themes.
 app.setName("Skin Studio");
+// A development preview may use its own Electron profile while the installed
+// Skin Studio remains open. Its themes and settings are supplied separately.
+if (!app.isPackaged && process.env.SKIN_STUDIO_USER_DATA_DIR) {
+  app.setPath("userData", process.env.SKIN_STUDIO_USER_DATA_DIR);
+}
 const singleInstanceLockAcquired = app.requestSingleInstanceLock();
 
 if (!singleInstanceLockAcquired) {
