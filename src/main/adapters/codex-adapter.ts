@@ -123,6 +123,8 @@ export class CodexAdapter implements TargetAdapter {
         injectedTargets = 0;
         message = "主题状态已失联，可重新应用或恢复默认";
       }
+    } else if (state.port && await isCodexCdp(state.port)) {
+      message = "原生外观 · 主题会话待命";
     } else if (state.lastError) {
       runtimeState = "stale";
       message = state.lastError;
@@ -213,34 +215,40 @@ export class CodexAdapter implements TargetAdapter {
   }
 
   async restore(): Promise<OperationResult> {
-    this.stopWatch();
     const state = await this.readState();
-    let cleanupMessage = "已移除 Skin Studio 注入";
-    if (state.port && await isCodexCdp(state.port)) {
-      try {
-        await evaluateCodexTargets(state.port, CLEANUP_EXPRESSION);
-      } catch (error) {
-        cleanupMessage = `清理注入时收到警告：${error instanceof Error ? error.message : String(error)}`;
-      }
-    }
-    if (state.managedLaunch && state.executablePath && state.bundlePath) {
-      const managed = state.port
-        ? await this.findManagedProcessIds(state.executablePath, state.port)
-        : [];
-      const candidates = state.codexPid && managed.includes(state.codexPid)
-        ? [state.codexPid]
-        : managed;
-      if (candidates.length) {
-        await this.terminateVerifiedPids(candidates, state.executablePath);
-      }
-      await execFile("/usr/bin/open", ["-na", state.bundlePath], { timeout: 8_000 });
-      cleanupMessage = "已恢复 Codex 原生界面，并关闭本机调试会话";
-    }
-    await this.writeState({ ...STOCK_STATE, updatedAt: new Date().toISOString() });
+    const livePort = state.port && await isCodexCdp(state.port) ? state.port : null;
+    const previousTheme = this.activeTheme;
     this.activeTheme = null;
+    this.stopWatch();
+    if (livePort) {
+      try {
+        const cleaned = await evaluateCodexTargets(livePort, CLEANUP_EXPRESSION);
+        if (!cleaned.length || cleaned.some((result) => !(result as { ok?: boolean })?.ok)) {
+          throw new Error("未能确认所有窗口已移除主题");
+        }
+      } catch (error) {
+        if (previousTheme) this.startWatch(previousTheme.themeId, previousTheme.payload, livePort);
+        return {
+          ok: false,
+          message: `还原未完成，未重启 ChatGPT：${error instanceof Error ? error.message : String(error)}`,
+          codex: await this.detect(),
+        };
+      }
+    }
+    // Keep the local-only CDP session until ChatGPT exits naturally. This lets
+    // appearance-only restore and the next theme switch happen without a restart.
+    await this.writeState({
+      ...STOCK_STATE,
+      port: livePort,
+      managedLaunch: Boolean(livePort && state.managedLaunch),
+      codexPid: livePort ? state.codexPid : null,
+      bundlePath: livePort ? state.bundlePath : null,
+      executablePath: livePort ? state.executablePath : null,
+      updatedAt: new Date().toISOString(),
+    });
     return {
       ok: true,
-      message: cleanupMessage,
+      message: livePort ? "已切回 ChatGPT 原生外观，无需重启" : "已切回 ChatGPT 原生外观",
       activeThemeId: null,
       codex: await this.detect(),
     };

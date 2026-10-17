@@ -290,6 +290,48 @@ textarea:focus-visible {
   flex: 1;
 }
 
+.update-row,
+.studio.self-themed .update-row {
+  display: flex;
+  width: 100%;
+  min-height: 39px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  color: #dce0e5;
+  border: 1px solid rgba(212, 220, 232, .12);
+  border-radius: 11px;
+  background: rgba(24, 27, 34, .88);
+  text-align: left;
+  cursor: pointer;
+}
+
+.update-row:hover,
+.studio.self-themed .update-row:hover {
+  color: #fff;
+  border-color: rgba(212, 220, 232, .28);
+  background: rgba(33, 37, 46, .96);
+}
+
+.update-row.available,
+.studio.self-themed .update-row.available {
+  color: #f7e6c9;
+  border-color: rgba(228, 172, 91, .32);
+  background: rgba(73, 49, 30, .94);
+}
+
+.update-row span {
+  flex: 1;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.update-row small {
+  color: inherit;
+  opacity: .58;
+  font-size: 9px;
+}
+
 .self-skin-row {
   display: flex;
   align-items: center;

@@ -1,0 +1,35 @@
+name: Release macOS
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Verify tag matches package version
+        run: test "${GITHUB_REF_NAME}" = "v$(node -p 'require("./package.json").version')"
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Check types
+        run: npm run typecheck
+      - name: Build Apple Silicon DMG
+        run: npm run dist:mac
+      - name: Verify packaged app signature
+        run: codesign --verify --deep --strict "release/mac-arm64/Skin Studio.app"
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "${GITHUB_REF_NAME}" release/*.dmg --verify-tag --title "Skin Studio ${GITHUB_REF_NAME}" --generate-notes

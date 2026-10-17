@@ -8,6 +8,7 @@ import type {
   ThemePatch,
   ThemeSummary,
   CodexStatus,
+  UpdateStatus,
 } from "../shared/types";
 
 const api: SkinStudioApi = {
@@ -21,6 +22,8 @@ const api: SkinStudioApi = {
   applyTheme: (id: string) => ipcRenderer.invoke("codex:apply", id) as Promise<OperationResult>,
   reapplyTheme: () => ipcRenderer.invoke("codex:reapply") as Promise<OperationResult>,
   restoreCodex: () => ipcRenderer.invoke("codex:restore") as Promise<OperationResult>,
+  checkForUpdate: () => ipcRenderer.invoke("studio:check-update") as Promise<UpdateStatus>,
+  openReleasePage: () => ipcRenderer.invoke("studio:open-release") as Promise<void>,
   updateSettings: (patch: Partial<StudioSettings>) =>
     ipcRenderer.invoke("studio:update-settings", patch) as Promise<StudioSettings>,
   revealTheme: (id: string) => ipcRenderer.invoke("theme:reveal", id) as Promise<void>,

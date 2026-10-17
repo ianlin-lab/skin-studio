@@ -21,6 +21,7 @@ import { CodexAdapter } from "./adapters/codex-adapter";
 import { RestartRequiredError } from "./adapters/target-adapter";
 import { resolveBundledThemesDirectory } from "./core/runtime-paths";
 import { ThemeRepository } from "./core/theme-repository";
+import { checkForUpdate, RELEASES_URL } from "./core/update-check";
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -41,9 +42,9 @@ let codexAdapter: CodexAdapter;
 // Keep development and packaged builds on the same user-data identity.
 // This lets a user move from the development build to the DMG without losing themes.
 app.setName("Skin Studio");
-// A development preview may use its own Electron profile while the installed
-// Skin Studio remains open. Its themes and settings are supplied separately.
-if (!app.isPackaged && process.env.SKIN_STUDIO_USER_DATA_DIR) {
+// Isolated development and release QA can run beside an installed copy without
+// touching the user's themes, settings, or single-instance lock.
+if (process.env.SKIN_STUDIO_USER_DATA_DIR) {
   app.setPath("userData", process.env.SKIN_STUDIO_USER_DATA_DIR);
 }
 const singleInstanceLockAcquired = app.requestSingleInstanceLock();
@@ -142,6 +143,14 @@ function createWindow(): void {
 function registerIpc(): void {
   ipcMain.handle("studio:bootstrap", () => dashboard());
   ipcMain.handle("studio:status", () => codexAdapter.detect());
+  ipcMain.handle("studio:check-update", async () => {
+    // In source mode app.getVersion() is Electron's version, not Skin Studio's.
+    const version = app.isPackaged
+      ? app.getVersion()
+      : (JSON.parse(await fs.readFile(path.resolve(__dirname, "../../..", "package.json"), "utf8")) as { version: string }).version;
+    return checkForUpdate(version);
+  });
+  ipcMain.handle("studio:open-release", () => shell.openExternal(RELEASES_URL));
   ipcMain.handle("studio:update-settings", async (_event, patch: Partial<StudioSettings>) => (
     repository.updateSettings(patch)
   ));

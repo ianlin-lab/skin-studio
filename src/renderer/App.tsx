@@ -41,6 +41,7 @@ import type {
   ThemeColors,
   ThemePresentation,
   ThemeSummary,
+  UpdateStatus,
 } from "../shared/types";
 import {
   applyBackgroundVisibility,
@@ -139,6 +140,8 @@ function App() {
   const [sourceFilter, setSourceFilter] = useState<"all" | "builtin" | "personal">("all");
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast>(null);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [importMode, setImportMode] = useState<ImportMode>(null);
   const [inspectorMenuOpen, setInspectorMenuOpen] = useState(false);
   const [githubUrl, setGithubUrl] = useState("https://github.com/Fei-Away/Codex-Dream-Skin");
@@ -167,6 +170,14 @@ function App() {
     return () => {
       alive = false;
     };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void window.skinStudio.checkForUpdate().then((status) => {
+      if (alive) setUpdateStatus(status);
+    }).catch(() => undefined);
+    return () => { alive = false; };
   }, []);
 
   useEffect(() => {
@@ -433,6 +444,31 @@ function App() {
     setData({ ...data, settings });
   }
 
+  async function handleUpdateClick() {
+    if (updateStatus?.available) {
+      try {
+        await window.skinStudio.openReleasePage();
+      } catch (error) {
+        setToast({ tone: "error", message: `无法打开下载页：${String(error)}` });
+      }
+      return;
+    }
+    setCheckingUpdate(true);
+    try {
+      const status = await window.skinStudio.checkForUpdate();
+      setUpdateStatus(status);
+      setToast({
+        tone: status.error ? "info" : "success",
+        message: status.error ? "暂时无法检查更新，请稍后再试" : status.available
+          ? `发现新版本 ${status.latestVersion}` : "已经是最新版本",
+      });
+    } catch {
+      setToast({ tone: "info", message: "暂时无法检查更新，请稍后再试" });
+    } finally {
+      setCheckingUpdate(false);
+    }
+  }
+
   async function saveThemeInfo(id: string, name: string, description: string) {
     const theme = data?.themes.find((item) => item.id === id);
     const nextName = name.trim();
@@ -510,6 +546,18 @@ function App() {
         </nav>
 
         <div className="sidebar-spacer" />
+
+        <button
+          className={`update-row ${updateStatus?.available ? "available" : ""}`}
+          onClick={() => void handleUpdateClick()}
+          disabled={checkingUpdate}
+          title={updateStatus?.available ? "打开 GitHub 下载新版 DMG" : "从 GitHub 检查 Skin Studio 新版本"}
+        >
+          {checkingUpdate ? <LoaderCircle className="spin" size={15} /> : updateStatus?.available
+            ? <ExternalLink size={15} /> : <RefreshCw size={15} />}
+          <span>{updateStatus?.available ? `新版 ${updateStatus.latestVersion} 可下载` : "检查更新"}</span>
+          <small>{updateStatus?.currentVersion ? `v${updateStatus.currentVersion}` : ""}</small>
+        </button>
 
         <button className="self-skin-row" onClick={toggleSelfSkin}>
           <div>
@@ -944,7 +992,7 @@ function App() {
                 </button>
                 <button
                   className="secondary icon-only"
-                  title="恢复 Codex 原生界面"
+                  title="切回 ChatGPT 原生外观（不重启）"
                   disabled={Boolean(busy)}
                   onClick={() => runOperation("restore", () => window.skinStudio.restoreCodex())}
                 >

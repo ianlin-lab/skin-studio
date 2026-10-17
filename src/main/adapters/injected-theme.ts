@@ -8,7 +8,7 @@ export interface InjectionPayload {
   revision: string;
 }
 
-const INJECTION_CONTRACT = "skin-studio-codex-v5";
+const INJECTION_CONTRACT = "skin-studio-codex-v6";
 
 function hexToRgb(color: string): [number, number, number] {
   const value = Number.parseInt(color.slice(1), 16);
@@ -49,9 +49,6 @@ export async function buildInjectionPayload(
   const panelBackdrop = p.panelBlur > 0
     ? `blur(${p.panelBlur}px) saturate(1.08)`
     : "none";
-  const softPanelBackdrop = p.panelBlur > 0
-    ? `blur(${Math.max(6, p.panelBlur * 0.55)}px)`
-    : "none";
   const compactPanelBackdrop = p.panelBlur > 0
     ? `blur(${Math.max(6, p.panelBlur * 0.7)}px)`
     : "none";
@@ -60,6 +57,7 @@ export async function buildInjectionPayload(
   const taskPanelAlpha = Math.min(0.98, p.panelOpacity + (1 - p.taskIntensity) * 0.18);
   const composerAlpha = p.composerOpacity ?? Math.min(0.98, p.panelOpacity + 0.13);
   const popupAlpha = p.popupOpacity ?? Math.min(0.99, p.panelOpacity + 0.16);
+  const lightComposer = readableOn(c.panelAlt) === "#101318";
   const veilAlpha = Math.min(
     0.9,
     p.overlayOpacity + Math.max(0, 1 - p.brightness) * 0.6,
@@ -320,7 +318,9 @@ html[data-skin-studio-theme] .thread-scroll-container,
 html[data-skin-studio-theme] [data-ds-part="thread"] {
   color: var(--skin-text) !important;
   background: ${rgba(c.background, taskPanelAlpha)} !important;
-  backdrop-filter: ${softPanelBackdrop} !important;
+  /* Backdrop filtering the scroll container makes it a containing block for
+     ChatGPT's absolutely positioned footer, moving the composer out of view. */
+  backdrop-filter: none !important;
 }
 
 html[data-skin-studio-theme] .composer-surface-chrome,
@@ -347,6 +347,14 @@ html[data-skin-studio-theme] [data-composer-surface-variant]:not([data-composer-
   color: var(--skin-text) !important;
   caret-color: var(--skin-accent) !important;
 }
+
+${lightComposer ? `/* A paper-light composer needs its own edge against the pale thread footer. */
+html[data-skin-studio-theme] [data-composer-surface-variant]:not([data-composer-surface-variant="inline"]) {
+  --composer-layout-surface-background: ${rgba(c.panelAlt, Math.max(0.97, composerAlpha))} !important;
+  background-color: ${rgba(c.panelAlt, Math.max(0.97, composerAlpha))} !important;
+  border-color: ${rgba(c.text, 0.34)} !important;
+  box-shadow: 0 12px 36px ${rgba(c.text, 0.18)}, 0 0 0 1px ${rgba(c.text, 0.08)} !important;
+}` : ""}
 
 html[data-skin-studio-theme] [data-composer-surface-variant]:not([data-composer-surface-variant="inline"]) :is([contenteditable="true"], textarea, input, .text-default) {
   color: var(--skin-text) !important;
@@ -379,6 +387,39 @@ html[data-skin-studio-theme] [data-ds-part="dialog"] {
   border-radius: var(--skin-radius) !important;
   backdrop-filter: blur(var(--skin-blur)) saturate(1.08) !important;
   box-shadow: 0 20px 54px ${rgba(c.background, 0.34)} !important;
+}
+
+/* Destructive confirmations must not show the thread through their body.
+   They use a different semantic surface from menus and ordinary popovers. */
+html[data-skin-studio-theme] :is([role="alertdialog"], [role="dialog"][aria-modal="true"]) {
+  --color-text: var(--skin-text);
+  --color-text-primary: var(--skin-text);
+  --color-text-secondary: var(--skin-muted);
+  --color-text-tertiary: var(--skin-muted);
+  --color-surface-elevated: ${rgba(c.panel, Math.max(0.97, popupAlpha))};
+  --color-surface-elevated-secondary: ${rgba(c.panelAlt, Math.max(0.97, popupAlpha))};
+  color: var(--skin-text) !important;
+  background-color: ${rgba(c.panel, Math.max(0.97, popupAlpha))} !important;
+}
+
+html[data-skin-studio-theme] :is([role="alertdialog"], [role="dialog"][aria-modal="true"]) :is(
+  [data-slot="alert-dialog-description"],
+  [data-slot="dialog-description"],
+  [class*="description"],
+  .text-secondary,
+  .text-tertiary
+) {
+  color: var(--skin-muted) !important;
+}
+
+html[data-skin-studio-theme] button[data-skin-studio-contrast="dark"],
+html[data-skin-studio-theme] button[data-skin-studio-contrast="dark"] :is(span, svg) {
+  color: #251b16 !important;
+}
+
+html[data-skin-studio-theme] button[data-skin-studio-contrast="light"],
+html[data-skin-studio-theme] button[data-skin-studio-contrast="light"] :is(span, svg) {
+  color: #fff7ed !important;
 }
 
 html[data-skin-studio-theme] .group\\/home-suggestions button,
@@ -596,6 +637,7 @@ ${theme.safeCss?.css ?? ""}
     root.setAttribute("data-skin-studio-revision", ${JSON.stringify(revision)});
     const partNodes = new Set();
     const lightSurfaceNodes = new Set();
+    const contrastNodes = new Set();
     const mark = (selector, part) => {
       for (const node of document.querySelectorAll(selector)) {
         if (!(node instanceof Element)) continue;
@@ -619,7 +661,7 @@ ${theme.safeCss?.css ?? ""}
       mark("[data-message-author-role]", "message");
       mark('.composer-surface-chrome, [data-composer-surface-variant]:not([data-composer-surface-variant="inline"])', "composer");
       mark('.composer-surface-chrome [class*="_footer_"]', "composer-toolbar");
-      mark('[role="dialog"], [role="menu"], [data-radix-popper-content-wrapper] > *', "dialog");
+      mark('[role="dialog"], [role="alertdialog"], [role="menu"], [data-radix-popper-content-wrapper] > *', "dialog");
       const isOpaqueLightSurface = (node) => {
         const match = getComputedStyle(node).backgroundColor.match(/rgba?\\(([^)]+)\\)/);
         if (!match) return false;
@@ -629,10 +671,42 @@ ${theme.safeCss?.css ?? ""}
         const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
         return luminance > .7;
       };
-      for (const node of document.querySelectorAll(':is([role="dialog"], [role="menu"], [class*="settings"], [class*="setting"], [class*="card"], [class*="surface"], [class*="popover"])')) {
+      for (const node of document.querySelectorAll(':is([role="dialog"], [role="alertdialog"], [role="menu"], [class*="settings"], [class*="setting"], [class*="card"], [class*="surface"], [class*="popover"])')) {
         if (!(node instanceof HTMLElement) || !isOpaqueLightSurface(node)) continue;
         node.setAttribute("data-skin-studio-light-surface", "");
         lightSurfaceNodes.add(node);
+      }
+      const parseColor = (value) => {
+        const match = value.match(/rgba?\\(([^)]+)\\)/);
+        if (!match) return null;
+        const values = match[1].split(",").map((part) => Number.parseFloat(part.trim()));
+        return values.length >= 3 && values.every(Number.isFinite)
+          ? [values[0], values[1], values[2], values[3] ?? 1]
+          : null;
+      };
+      const luminance = (rgb) => rgb.slice(0, 3).map((value) => {
+        const channel = value / 255;
+        return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+      }).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
+      for (const button of document.querySelectorAll(':is([role="alertdialog"], [role="dialog"][aria-modal="true"]) button')) {
+        if (!(button instanceof HTMLButtonElement) || button.hasAttribute("data-skin-studio-contrast")) continue;
+        const layers = [];
+        for (let node = button; node instanceof HTMLElement; node = node.parentElement) {
+          const color = parseColor(getComputedStyle(node).backgroundColor);
+          if (color) layers.push(color);
+          if (node.matches('[role="alertdialog"], [role="dialog"][aria-modal="true"]')) break;
+        }
+        let background = ${JSON.stringify(hexToRgb(c.panel))};
+        for (const [red, green, blue, alpha] of layers.reverse()) {
+          background = [red, green, blue].map((value, index) => value * alpha + background[index] * (1 - alpha));
+        }
+        const foreground = parseColor(getComputedStyle(button.querySelector("span") ?? button).color);
+        if (!foreground) continue;
+        const light = Math.max(luminance(background), luminance(foreground));
+        const dark = Math.min(luminance(background), luminance(foreground));
+        if ((light + .05) / (dark + .05) >= 4.5) continue;
+        button.setAttribute("data-skin-studio-contrast", luminance(background) > .45 ? "dark" : "light");
+        contrastNodes.add(button);
       }
     };
     let refreshTimer = null;
@@ -737,6 +811,9 @@ ${theme.safeCss?.css ?? ""}
       for (const node of lightSurfaceNodes) node.removeAttribute?.("data-skin-studio-light-surface");
       document.querySelectorAll("[data-skin-studio-light-surface]")
         .forEach((node) => node.removeAttribute("data-skin-studio-light-surface"));
+      for (const node of contrastNodes) node.removeAttribute?.("data-skin-studio-contrast");
+      document.querySelectorAll("[data-skin-studio-contrast]")
+        .forEach((node) => node.removeAttribute("data-skin-studio-contrast"));
       root.removeAttribute("data-skin-studio-theme");
       root.removeAttribute("data-skin-studio-revision");
       if (window[stateKey]?.cleanup === cleanup) delete window[stateKey];
@@ -768,6 +845,11 @@ export const CLEANUP_EXPRESSION = `(() => {
   if (typeof state?.cleanup === "function") state.cleanup();
   document.getElementById("skin-studio-theme-style")?.remove();
   document.querySelectorAll("[data-ds-part]").forEach((node) => node.removeAttribute("data-ds-part"));
+  document.querySelectorAll("[data-skin-studio-light-surface], [data-skin-studio-contrast]")
+    .forEach((node) => {
+      node.removeAttribute("data-skin-studio-light-surface");
+      node.removeAttribute("data-skin-studio-contrast");
+    });
   document.documentElement.removeAttribute("data-skin-studio-theme");
   document.documentElement.removeAttribute("data-skin-studio-revision");
   delete window.__SKIN_STUDIO_THEME_STATE__;

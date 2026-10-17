@@ -2,7 +2,7 @@
 
 Skin Studio 是一个只在本机运行的 macOS Codex 换肤工具。第一版面向 Apple Silicon，不需要账号、API Key、云服务或付费能力。
 
-它不会修改 Codex 的 `.app`、`app.asar`、代码签名、项目目录或对话数据。应用主题时，Skin Studio 让官方 Codex 以仅绑定 `127.0.0.1` 的 Chrome DevTools Protocol（CDP）会话启动，再向真实渲染器注入可清理的 CSS。恢复默认会移除注入；如果该会话由 Skin Studio 启动，还会正常退出它并按官方方式重新打开 Codex，从而关闭调试端口。
+它不会修改 Codex/ChatGPT 的 `.app`、`app.asar`、代码签名、项目目录或对话数据。首次应用主题时，Skin Studio 让官方应用以仅绑定 `127.0.0.1` 的 Chrome DevTools Protocol（CDP）会话启动，再向真实渲染器注入可清理的 CSS。切回原生外观只移除注入，不会重启 ChatGPT；本机调试端口会保留到 ChatGPT 自然退出，以便再次换肤。
 
 > 这是非 OpenAI 官方的个人工具。Codex 更新可能改变界面结构；遇到异常请先点“恢复 Codex 原生界面”。
 
@@ -16,7 +16,8 @@ Skin Studio 是一个只在本机运行的 macOS Codex 换肤工具。第一版�
 - 转换导入 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin) v1 `theme.json` 文件夹、ZIP 或公开 GitHub 仓库。
 - 背景铺放、水平/垂直焦点、缩放、亮度、遮罩、面板透明度、玻璃模糊、圆角和任务背景强度调节。
 - 完整界面色板：背景、面板、浮层、强调色、强调浅色、辅助色、正文和弱文字。Codex 适配器统一映射主画布、侧栏、顶部栏、模式切换、输入框、按钮、菜单、弹窗、链接、选择态和代码表面。
-- 主题预览、应用、热切换、重新应用、删除导入主题、一键恢复默认。
+- 主题预览、应用、热切换、重新应用、删除导入主题、一键切回原生外观（不重启）。
+- 可检查 GitHub 最新正式版；发现新版本时打开下载页，不在后台安装软件。
 - Skin Studio 自身跟随当前预览主题；可在左下角关闭。支持的动态主题可通过“背景动效”开关同时控制 Skin Studio 与 Codex。
 - 首次应用前明确提示并正常重启 Codex；失败自动尝试原生启动回滚。
 - 独立异常恢复命令，不会根据模糊进程名结束进程。
@@ -68,7 +69,7 @@ npm run verify:cdp -- --port 9358 --builtin --screenshot ./artifacts/aurora.png
 4. 如果 Codex 已在运行但没有调试端口，先保存尚未发送的输入，再在原生确认框中选择“重启并应用”。
 5. 检查 Codex 首页、侧栏、项目选择、输入框、任务页、长文本与代码；调整窗口尺寸。
 6. 切换另一主题并应用，确认无需再次重启即可热切换。
-7. 点击右下角恢复按钮，确认 Codex 以原生方式重新打开，状态显示“Codex 使用原生界面”。
+7. 点击右下角恢复按钮，确认 ChatGPT 窗口不重启、立即回到原生外观；再次应用主题也无需重启。
 
 如果 Skin Studio 开发进程异常退出且无法打开界面，可在项目目录运行：
 
@@ -80,7 +81,7 @@ npm run recover
 
 ## 安装与更新
 
-日常使用请从 GitHub Releases 下载 Apple Silicon DMG，拖入“应用程序”后直接使用；不需要启动源码开发环境。首次从开发版切换到正式应用时，会自动迁移现有主题和运行状态。发布者将源码提交到本仓库，并把每个版本的 DMG 附在对应 Release；用户手动下载新 DMG 覆盖旧版本即可更新。详见 [发布与更新](docs/RELEASE.md)。
+日常使用请从 GitHub Releases 下载 Apple Silicon DMG，拖入“应用程序”后直接使用；不需要启动源码开发环境。Skin Studio 会提示 GitHub 上的新版本，点击后打开下载页；用户用新 DMG 覆盖旧应用即可更新，主题数据保留。源码已连接本仓库；推送新版本标签后，GitHub Actions 自动测试、构建并上传 DMG。详见 [发布与更新](docs/RELEASE.md)。
 
 ## 社区主题兼容
 
@@ -121,7 +122,7 @@ npm run recover
 - 动态 WebP 是否播放取决于当前 Electron/Chromium 解码能力；文件会原样保留。关闭“背景动效”时，Skin Studio 使用导入时生成的静态首帧；主题也可以提供专门调校的静态底图。
 - 第一版不处理 HEIC/TIFF，不安装网络字体，不执行远程 CSS。
 - GitHub `/tree/<ref>` 当前支持不含斜杠的分支/tag；私有仓库不支持。
-- Skin Studio 退出后无法监控 Codex renderer reload；macOS 关闭窗口不会退出应用，若要彻底退出建议先恢复默认。
+- Skin Studio 退出后无法监控 Codex renderer reload；macOS 关闭窗口不会退出应用。切回原生外观不会关闭本机调试端口，正常退出 ChatGPT 后端口会消失。
 
 ## 构建与 DMG
 
@@ -131,10 +132,10 @@ npm run recover
 npm run build
 ```
 
-按约定，当前尚未执行 DMG 打包。你确认可以发布后再运行：
+本机需要手工生成 DMG 时运行：
 
 ```bash
 npm run dist:mac
 ```
 
-DMG 将输出到 `release/`。没有 Apple Developer 账号时构建为未签名版本；首次打开需在 Finder 中右键应用并选择“打开”，或到“系统设置 → 隐私与安全性”确认打开。不要为绕过 Gatekeeper 建议用户全局关闭系统安全策略。
+DMG 将输出到 `release/`。正式发布采用 GitHub Actions：源码提交后运行 `npm version patch`，再运行 `git push origin main --follow-tags`，标签推送会启动自动发布。当前构建使用临时签名，不是 Apple Developer 正式签名或公证；首次打开需在 Finder 中右键应用并选择“打开”，或到“系统设置 → 隐私与安全性”确认打开。不要为绕过 Gatekeeper 建议用户全局关闭系统安全策略。

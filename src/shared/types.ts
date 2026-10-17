@@ -158,6 +158,14 @@ export interface OperationResult {
   warnings?: string[];
 }
 
+export interface UpdateStatus {
+  currentVersion: string;
+  latestVersion: string | null;
+  available: boolean;
+  checkedAt: string;
+  error?: string;
+}
+
 export interface ImportResult extends OperationResult {
   importedThemeIds?: string[];
 }
@@ -178,6 +186,8 @@ export interface SkinStudioApi {
   applyTheme(id: string): Promise<OperationResult>;
   reapplyTheme(): Promise<OperationResult>;
   restoreCodex(): Promise<OperationResult>;
+  checkForUpdate(): Promise<UpdateStatus>;
+  openReleasePage(): Promise<void>;
   updateSettings(patch: Partial<StudioSettings>): Promise<StudioSettings>;
   revealTheme(id: string): Promise<void>;
 }

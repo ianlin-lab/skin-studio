@@ -32,11 +32,16 @@ describe("injected theme payload", () => {
     try {
       const payload = await buildInjectionPayload(theme, asset);
       expect(payload.expression).toContain("skin-studio-theme-style");
-      expect(payload.expression).toContain("skin-studio-codex-v5");
+      expect(() => Function(`return ${payload.expression}`)).not.toThrow();
+      expect(payload.expression).toContain("skin-studio-codex-v6");
       expect(payload.expression).toContain("data:image/svg+xml;base64");
       expect(payload.expression).toContain("data-ds-part");
       expect(payload.expression).toContain("composer-surface-chrome");
       expect(payload.expression).toContain("[data-composer-surface-variant]");
+      expect(payload.expression).toContain('[role=\\"alertdialog\\"]');
+      expect(payload.expression).toContain("data-skin-studio-contrast");
+      expect(payload.expression).toContain("ChatGPT's absolutely positioned footer");
+      expect(payload.expression).toContain("backdrop-filter: none !important;");
       expect(payload.expression).toContain("--composer-layout-surface-background:");
       expect(payload.expression).toContain("aside[data-testid=\\\"app-shell-floating-left-panel\\\"]");
       expect(payload.expression).toContain("--ds-theme-color-accent");
@@ -72,7 +77,7 @@ describe("injected theme payload", () => {
         isConnected: true,
         dataset: {
           revision: payload.revision,
-          contract: "skin-studio-codex-v5",
+          contract: "skin-studio-codex-v6",
         },
       };
       const documentMock = {
